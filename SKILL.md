@@ -99,10 +99,14 @@ python3 <プロジェクト>/tools/kicad_env.py        # KiCad の場所の確�
 
 最初に `tools/project.py` の `PROJECT` (ファイル名) と `TITLE` (資料のタイトル) を書き換える。全スクリプトがここを読む。
 
+環境の確認は `python3 <この Skill>/setup/check.py` (KiCad・ngspice・Python・uv・仮想環境・Git を一覧で OK/NG 表示)。
+足りなければ `setup/install_mac.sh` / `setup/install_windows.ps1` でまとめて入れられる (README に手順)。
+仮想環境の既定の場所は `~/.jlc-hardware-project/venv` (環境変数 `JLC_VENV` で変更可)。
+
 3D CAD・シミュレーションの集計・資料の図には Python 3.12 の仮想環境が要る:
 
 ```sh
-uv venv -p 3.12 <venv> && uv pip install --python <venv>/bin/python build123d ezdxf matplotlib numpy pyvista
+uv venv -p 3.12 ~/.jlc-hardware-project/venv && uv pip install --python ~/.jlc-hardware-project/venv/bin/python build123d ezdxf matplotlib numpy pyvista
 ```
 
 基板生成 (`gen_pcb.py`, `dump_pcb.py`) は KiCad 同梱の Python (pcbnew が使えるもの) で実行する。
