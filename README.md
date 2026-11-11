@@ -22,7 +22,7 @@ Documentation and comments are in Japanese.
 ## 導入
 
 ```sh
-git clone <このリポジトリ> ~/.claude/skills/jlc-hardware-project
+git clone https://github.com/AsteroidApp-hub/jlc-hardware-project.git ~/.claude/skills/jlc-hardware-project
 ```
 
 Claude Code を起動して「基板を作って箱に入れたい」などと話しかけると使われます。
