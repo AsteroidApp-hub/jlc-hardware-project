@@ -11,6 +11,10 @@ import datetime, glob, html, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from project import PROJECT, TITLE  # noqa: E402
+try:
+    from project import DISCLAIMER  # noqa: E402
+except ImportError:
+    DISCLAIMER = ""
 
 CSS = """
 :root { --bg:#ffffff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0; --head:#f6f8fa; --accent:#0969da; --code:#eff1f3; }
@@ -38,6 +42,8 @@ hr { border: none; border-top: 1px solid var(--line); margin: 2em 0; }
 p img, td img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
 ul, ol { padding-left: 1.6em; }
 .meta { color: var(--muted); font-size: .85em; margin-bottom: 1.5em; }
+blockquote { margin: 1em 0; padding: .6em 1em; border-left: 4px solid var(--muted); background: var(--code); }
+.disclaimer { color: var(--muted); font-size: .85em; margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--border, #ccc); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--bg); }
 .card img { width: 100%; border-radius: 4px; border: 1px solid var(--line); background: #fff; }
@@ -102,6 +108,14 @@ def convert(md):
             continue
         if re.match(r"^\s*---+\s*$", ln) and not (i + 1 < len(lines) and lines[i + 1].startswith("|")):
             flush(); out.append("<hr>"); i += 1
+            continue
+        if ln.lstrip().startswith(">"):
+            # 引用 (> で始まる行が続く範囲を 1 つの引用にする)
+            flush()
+            q = []
+            while i < len(lines) and lines[i].lstrip().startswith(">"):
+                q.append(lines[i].lstrip()[1:].strip()); i += 1
+            out.append("<blockquote>" + "<br>".join(inline(x) for x in q if x) + "</blockquote>")
             continue
         if ln.lstrip().startswith("|"):
             flush()
@@ -171,6 +185,7 @@ def page(title, body, rel_root=""):
 <body><main>
 <div class="meta">{back}{TITLE}　|　{stamp} 生成</div>
 {body}
+{f'<p class="disclaimer">{html.escape(DISCLAIMER)}</p>' if DISCLAIMER else ''}
 </main></body></html>
 """
 
@@ -226,7 +241,7 @@ def index():
     docs = "".join(f'<tr><td><a href="{p}">{t}</a></td><td>{d}</td></tr>' for p, t, d in DOCS
                    if os.path.exists(os.path.join(ROOT, p)))
     body = f"""<h1>{TITLE}</h1>
-<p>DC12V 入力 / UC3843 昇圧 + リップルフィルター / 2ch XLR スルー。基板は JLCPCB (SMD実装は基本部品のみ)、筐体は JLCCNC の板金。</p>
+<p>DC12〜18V 入力 / UC3843 昇圧 + リップルフィルター / 2ch XLR スルー。基板は JLCPCB (SMD実装は基本部品のみ)、筐体は JLCCNC の板金。</p>
 <h2>資料</h2>
 <table><thead><tr><th>資料</th><th>内容</th></tr></thead><tbody>{docs}</tbody></table>
 <h2>図面・イメージ</h2>

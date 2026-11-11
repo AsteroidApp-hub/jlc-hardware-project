@@ -11,6 +11,24 @@ A Claude Code skill for end-to-end small hardware projects: KiCad schematic and 
 ngspice verification, sheet-metal enclosure (build123d), JLCPCB/JLCCNC fabrication files, and HTML documentation.
 Documentation and comments are in Japanese.
 
+## 作例
+
+同梱の雛形 (2ch P48 ファンタム電源) から、この Skill で作ったものです。
+
+| 基板の 3D 画像 (KiCad) | 板金の筐体 (JLCCNC 向け) |
+|---|---|
+| ![部品を載せた基板の 3D 画像](docs/images/board-3d.jpg) | ![筐体の 3D プレビュー](docs/images/enclosure.jpg) |
+
+1 枚にすべてつながった回路図 (KiCad)
+
+![回路図](docs/images/schematic.png)
+
+| ngspice のシミュレーション | 原寸チェック用の基板図 (A4・1:1) |
+|---|---|
+| ![電源ノイズの伝わり方と信号の通過特性のグラフ](docs/images/simulation.png) | ![原寸で印刷する基板図](docs/images/print-check.png) |
+
+ほかに、ガーバー・BOM・CPL などの発注データと、購入リンク付きの部品リスト・設計の根拠・製作者向け資料 (HTML) も作ります。
+
 ## 必ず作るもの
 
 1. KiCad の回路図 (1 枚にすべてつながった形、PDF/PNG 付き)
@@ -198,6 +216,7 @@ ngspice は `NGSPICE`、Python は `PYTHON` でも指定できます。
 - この Skill や成果物を使ったことで生じた損害 (機器や部品の故障、接続した機器の破損、発注・購入の費用、けが、火災など) について、作者と貢献者は責任を負いません。利用は自己責任でお願いします。
 - AI (Claude) が作る設計や資料には、誤りが含まれることがあります。発注や通電の前に、原寸チェック・回路のレビュー・実機での測定などで、人が確かめてください。
 - 法令や規格への適合 (電気用品安全法 (PSE) など) の確認は、利用する方が行ってください。
+- この Skill が作る資料にも、各ページの末尾と製作者向け資料の冒頭に、同じ趣旨の短い注意書きが入ります。文言は `tools/project.py` の `DISCLAIMER` で変えられます。
 - ライセンスの条文 (英語) は `LICENSE` にあり、無保証と責任の制限はそちらにも書かれています。
 
 This skill and everything it generates are provided "as is", without warranty of any kind. The authors are not liable for any damage

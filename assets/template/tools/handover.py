@@ -17,6 +17,10 @@ sys.path.insert(0, os.path.join(HERE, "enclosure"))
 import gen_schematic as sch          # noqa: E402
 import gen_enclosure as E            # noqa: E402
 import md2html                       # noqa: E402
+try:
+    from project import DISCLAIMER  # noqa: E402
+except ImportError:
+    DISCLAIMER = ""
 
 import matplotlib
 matplotlib.use("Agg")
@@ -203,6 +207,8 @@ def main():
 
 {today} 版。この資料と同じフォルダの図、および `発注データ/` のファイルで製作できるようにまとめています。
 不明点は依頼者に確認してください。
+
+{('> ' + DISCLAIMER) if DISCLAIMER else ''}
 
 ## 1. 製作物の概要
 
