@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.skill
+# 雛形をこの中で試しに実行したときの生成物は入れない
+assets/template/kicad/*.kicad_sch
+assets/template/kicad/*.kicad_pcb
+assets/template/kicad/*.kicad_pro
+assets/template/kicad/*.kicad_prl
+assets/template/kicad/expected_nets.txt
+assets/template/*.csv
+assets/template/*.pdf
+assets/template/*.png
+assets/template/*.html
+assets/template/部品購入リスト.md
+assets/template/筐体/
+assets/template/発注データ/
+assets/template/シミュレーション/
+assets/template/製作者向け資料/
+assets/template/原寸チェック/
+assets/template/設計根拠/
+# メーカーの 3D モデルは再配布しない
+*.stp
+*.step
