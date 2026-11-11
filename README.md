@@ -192,6 +192,17 @@ ngspice は `NGSPICE`、Python は `PYTHON` でも指定できます。
 - 雛形の回路は実例であり、実機での動作を保証するものではありません。高電圧 (48V 級) を扱うので、組立・試験は注意して行ってください。
 - JLCPCB、JLCCNC、KiCad、Digi-Key、各部品メーカー名は各社の商標です。この Skill は各社と関係ありません。
 
+## 免責事項
+
+- この Skill と、この Skill で作った回路図・基板・筐体・資料・購入リストなどの成果物は、無保証で提供します。内容の正しさや、目的に合うことは保証しません。
+- この Skill や成果物を使ったことで生じた損害 (機器や部品の故障、接続した機器の破損、発注・購入の費用、けが、火災など) について、作者と貢献者は責任を負いません。利用は自己責任でお願いします。
+- AI (Claude) が作る設計や資料には、誤りが含まれることがあります。発注や通電の前に、原寸チェック・回路のレビュー・実機での測定などで、人が確かめてください。
+- 法令や規格への適合 (電気用品安全法 (PSE) など) の確認は、利用する方が行ってください。
+- ライセンスの条文 (英語) は `LICENSE` にあり、無保証と責任の制限はそちらにも書かれています。
+
+This skill and everything it generates are provided "as is", without warranty of any kind. The authors are not liable for any damage
+arising from their use. Always have a person review designs before ordering or powering a circuit.
+
 ## ライセンス
 
 MIT License (`LICENSE`)
