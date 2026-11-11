@@ -5,6 +5,7 @@
 
 - 基板は JLCPCB (SMD 実装は基本部品のみ)、筐体は JLCCNC の板金で作る前提
 - 手はんだ部品は国内通販 (秋月電子通商・千石電商・Digi-Key Japan など) で買う前提で、購入リンク付きのリストを作る
+- 部品のグレード (信号の通り道にオーディオ用の部品を使うか、汎用にするか) を最初に選び、費用は送料込みの合計で比べる
 - 2ch P48 ファンタム電源の実例で一通り動いた雛形スクリプト一式 (`assets/template/`) を同梱
 
 A Claude Code skill for end-to-end small hardware projects: KiCad schematic and PCB generated from a Python part list,

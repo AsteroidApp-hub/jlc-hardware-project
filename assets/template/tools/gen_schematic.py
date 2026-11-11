@@ -13,6 +13,13 @@ SS = kicad_share()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "kicad")
 from project import PROJECT, TITLE  # noqa: E402
+try:
+    from project import GRADE  # noqa: E402
+except ImportError:
+    GRADE = "audio"
+if GRADE not in ("audio", "standard"):
+    raise SystemExit(f'tools/project.py の GRADE は "audio" か "standard" (今: {GRADE!r})')
+AUDIO_GRADE = GRADE == "audio"
 NS = uuid.UUID("6f1c1e0a-7d1b-4a57-9f55-4b5531303030")
 
 
@@ -117,6 +124,9 @@ SHOP = {
                "https://www.digikey.jp/ja/products/detail/nichicon/UFW2A101MPD/1964184", 173, 1, "税抜"),
     "ZLH470": (AKI, "ルビコン ZLH 470uF/35V  販売コード102719", "https://akizukidenshi.com/catalog/g/g102719/", 40, 1,
                "税込"),
+    # 汎用グレードの 100uF/100V (MUSE FW と同じ φ10×20 P5。2026-11-11 確認: 1個 ¥180 / 10個 ¥113.4 税抜)
+    "ZLH100": (DK, "100ZLH100MEFC10X20 (Rubycon ZLH 低ESR 100uF/100V)",
+               "https://www.digikey.jp/ja/products/result?keywords=100ZLH100MEFC10X20", 180, 1, "税抜"),
     "FILM": (DK, "MKP4F031002D00KSSD (WIMA MKP4 ポリプロピレン 0.1uF/250V)",
              "https://www.digikey.jp/ja/products/detail/wima/MKP4F031002D00KSSD/19122665", 137, 1, "税抜"),
     "P6KE24": (DK, "P6KE24CA (Littelfuse 双方向TVS 20.5V)",
@@ -185,8 +195,14 @@ def CP(ref, value, plus, minus, fp, **kw):
     P(ref, "Device:C_Polarized", value, fp, {"1": plus, "2": minus}, **kw)
 
 
-AUDIO = dict(mpn="Nichicon UFW2A101MPD (MUSE FW)", asm="HAND", buy="UFW100",
-             note="オーディオ用電解 100uF/100V φ10×20 P5")
+if AUDIO_GRADE:
+    AUDIO = dict(mpn="Nichicon UFW2A101MPD (MUSE FW)", asm="HAND", buy="UFW100",
+                 note="オーディオ用電解 100uF/100V φ10×20 P5")
+    FILM_ASM, FILM_NOTE = "HAND", "ポリプロピレン フィルムバイパス 250V P7.5"
+else:
+    AUDIO = dict(mpn="Rubycon 100ZLH100MEFC10X20", asm="HAND", buy="ZLH100",
+                 note="汎用の低ESR電解 100uF/100V φ10×20 P5 (オーディオ用にするなら MUSE FW)")
+    FILM_ASM, FILM_NOTE = "DNP", "汎用グレードでは未実装 (オーディオ用にするなら WIMA MKP4 0.1uF を付ける)"
 C100N50 = dict(lcsc="C14663", mpn="CC0603KRX7R9BB104")
 C100N100 = dict(fp="C0805", lcsc="C28233", mpn="CL21B104KCFNNNE")
 C1N2KV = dict(fp="C1206", lcsc="C9196", mpn="1206B102K202NT")
@@ -283,8 +299,8 @@ def channel(ch):
     C(c(3), "1nF/2kV", N("IN_C"), "CHASSIS", note="RFI対策", **C1N2KV)
     for i, hc in enumerate("HC"):
         CP(c(4 + 2 * i), "100uF/100V", N(f"IN_{hc}"), N(f"CC_{hc}"), "CP10", **AUDIO)
-        C(c(5 + 2 * i), "0.1uF PP", N(f"IN_{hc}"), N(f"CC_{hc}"), "FILM", mpn="WIMA MKP4F031002D00KSSD", asm="HAND",
-          buy="FILM", note="ポリプロピレン フィルムバイパス 250V P7.5")
+        C(c(5 + 2 * i), "0.1uF PP", N(f"IN_{hc}"), N(f"CC_{hc}"), "FILM", mpn="WIMA MKP4F031002D00KSSD", asm=FILM_ASM,
+          buy="FILM" if AUDIO_GRADE else None, note=FILM_NOTE)
         R(r(4 + i), "10R", N(f"CC_{hc}"), N(f"OUT_{hc}"), fp="R1206", lcsc="C17903", mpn="1206W4F100JT5E",
           note="出力保護用の直列抵抗")
         R(r(6 + i), "10k", N(f"OUT_{hc}"), "GND", lcsc="C25804", mpn="0603WAF1002T5E",
@@ -466,8 +482,10 @@ TEXTS = [
     (152, 28.5, 1.3, "LED 約1mA"),
     (93, 76, 1.5,
      "【注記】\n"
-     "1. オーディオ用電解コンデンサ (ニチコン MUSE FW 100µF/100V):  C18, C101, C104, C106, C201, C204, C206\n"
-     "2. ポリプロピレンフィルム WIMA MKP4 0.1µF/250V: C105, C107, C205, C207\n"
+     + ("1. オーディオ用電解コンデンサ (ニチコン MUSE FW 100µF/100V):  C18, C101, C104, C106, C201, C204, C206\n"
+        "2. ポリプロピレンフィルム WIMA MKP4 0.1µF/250V: C105, C107, C205, C207\n" if AUDIO_GRADE else
+        "1. 電解コンデンサ (汎用の低ESR品 100µF/100V):  C18, C101, C104, C106, C201, C204, C206\n"
+        "2. フィルム C105, C107, C205, C207 は未実装 (オーディオ用にするときに付ける)\n") +
      "3. P48給電抵抗 6.81kΩ 0.1% 15ppm (R102, R103, R202, R203)\n"
      "4. XLR: 1番ピン = CHASSIS、2番 = HOT、3番 = COLD。  入力 = メス (NC3FAAH2)、出力 = オス (NC3MAAH-1)\n"
      "5. 出力TVS (P4KE15CA) は接続機器の保護用。電源投入後の数秒間、出力に最大約15Vの同相電圧が出る\n"
@@ -560,13 +578,16 @@ def write_outputs():
             need.setdefault(p["buy"], []).append(p["ref"])
     # 予備: Digi-Key の送料無料 (¥6,000) に届かせる分を、10個単価が使える数と予備に回す
     #   YR1 は10本から2本ずつ値の近い組を選ぶ (ホット/コールドの差を小さく → ノイズ除去が良くなる)
-    spare = {"UC3843AN": 1, "UPW47": 8, "UFW100": 6, "FILM": 6, "YR1": 6, "P6KE24": 1}
-    tier10 = {"UFW100": 110.1, "UPW47": 67.3, "FILM": 86.2, "YR1": 104.0, "P6KE24": 78.1,
+    #   汎用グレードはフィルムを買わない分だけ小計が減るので、電解の予備を増やして ¥6,000 に届かせる
+    spare = {"UC3843AN": 1, "UPW47": 8, "UFW100": 6, "ZLH100": 6 if AUDIO_GRADE else 13, "FILM": 6, "YR1": 6, "P6KE24": 1}
+    tier10 = {"UFW100": 110.1, "ZLH100": 113.4, "UPW47": 67.3, "FILM": 86.2, "YR1": 104.0, "P6KE24": 78.1,
               "UC3843AN": 216.1}   # 10個以上の単価 (Digi-Key, 税抜)
     lines = ["# 部品購入リスト (国内通販)", "",
              TITLE + " / 基板1台分。価格は %s 時点の確認値。" % datetime.date.today().isoformat(),
              "", "- 秋月電子通商・千石電商の価格は税込、Digi-Key Japanの価格は税抜",
              "- **「購入数」で注文してください。** 必要数より多いのは、まとめ買いの単価・送料無料の条件・予備のため",
+             ("- 部品のグレード: オーディオ用 (信号の通り道の電解は MUSE FW、フィルムは WIMA MKP4)" if AUDIO_GRADE else
+              "- 部品のグレード: 汎用 (電解は低 ESR の一般品、フィルムは付けない)。給電抵抗の 0.1% は規格のため汎用でも変えない"),
              "- 購入先は 3 店にまとめた (Digi-Key でしか買えない部品 / 秋月でしか買えない部品 / ねじ類)。理由は最後の「送料」を参照",
              "- 在庫・価格は注文時に各ショップで確認してください", ""]
     total = {}
@@ -604,19 +625,25 @@ def write_outputs():
         lines += ["## その他 (ホームセンター・モノタロウ等)", "", "| 品名 | 数量 | 用途 |", "|---|---:|---|"]
         lines += [f"| {n} | {q} | {u} |" for n, q, u in OTHER_BUY] + [""]
     need_dk = sum(SHOP[k][3] * len(v) for k, v in need.items() if SHOP[k][0] == DK)
-    if total[DK] < SHIPPING[DK][1]:
-        raise SystemExit(f"Digi-Key の小計 ¥{total[DK]:,} が送料無料の ¥{SHIPPING[DK][1]:,} に届かない。spare を見直す")
     ship = {k: (0 if total[k] >= v[1] else v[0]) for k, v in SHIPPING.items()}
+    if ship[DK]:
+        short = SHIPPING[DK][1] - total[DK]
+        print(f"注意: Digi-Key の小計 ¥{total[DK]:,} が送料無料の ¥{SHIPPING[DK][1]:,} に ¥{short:,} 足りない "
+              f"(送料 ¥{SHIPPING[DK][0]:,})。足りない額が送料より小さければ、spare を増やすと得")
     taxin = {AKI: total[AKI], SEN: total[SEN], DK: round(total[DK] * 1.1)}
     lines += ["## 送料と合計", "",
               "| ショップ | 商品 (税込) | 送料 | 合計 | 送料の条件 |", "|---|---:|---:|---:|---|"]
     lines += [f"| {k} | ¥{taxin[k]:,} | ¥{ship[k]:,} | ¥{taxin[k] + ship[k]:,} | {SHIPPING[k][2]} |" for k in (DK, AKI, SEN)]
     lines += [f"| **計** | ¥{sum(taxin.values()):,} | ¥{sum(ship.values()):,} | **¥{sum(taxin.values()) + sum(ship.values()):,}** | |", "",
               "### 店のまとめ方", "",
-              "- **Digi-Key Japan**: Neutrik の基板用 XLR、MUSE FW 100V、WIMA MKP4、TE YR1 0.1%、P6KE24CA、DIP の UC3843 は"
-              "秋月電子・千石電商に無い (2026-11 に検索して確認)。¥6,000 未満だと送料 ¥2,000 かかる。"
-              f"必要数だけだと ¥{need_dk:,} (税抜) なので、送料とほぼ同じ額を予備と 10 個単価の数量に回して ¥6,000 以上にした"
-              " (予備は修理や2台目に使える。YR1 は値の近い組を選べる)",
+              "- **Digi-Key Japan**: Neutrik の基板用 XLR、"
+              + ("MUSE FW 100V、WIMA MKP4、" if AUDIO_GRADE else "100V の電解 (Rubycon ZLH)、")
+              + "TE YR1 0.1%、P6KE24CA、DIP の UC3843 は秋月電子・千石電商に無い (2026-11 に検索して確認)。"
+              "¥6,000 未満だと送料 ¥2,000 かかる。"
+              + (f"必要数だけだと ¥{need_dk:,} (税抜) なので、予備と 10 個単価の数量に回して ¥6,000 以上にした"
+                 " (予備は修理や2台目に使える。YR1 は値の近い組を選べる)" if not ship[DK] else
+                 f"今の数量では ¥{SHIPPING[DK][1] - total[DK]:,} 足りず、送料がかかる。"
+                 "足りない額が送料より小さければ、予備を足して ¥6,000 以上にするほうが得"),
               "- **秋月電子通商**: トロイダル・DC ジャック・MOSFET・TVS (P4KE15CA)・スイッチ・LED などは秋月の品で基板を設計している。"
               "送料無料 (¥11,000) までは遠いので、必要な分だけ買う",
               "- **千石電商**: メス-メスの金属スペーサー M3×6・歯付き座金・M3×4 ねじ・タッピンねじ 3×8 は秋月に無い。"

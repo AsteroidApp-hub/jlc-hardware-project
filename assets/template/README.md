@@ -13,7 +13,7 @@
 
 | ファイル | 役割 | プロジェクトごとに書き換える部分 | そのまま使える部分 |
 |---|---|---|---|
-| `tools/project.py` | プロジェクト名・タイトル・資料の注意書き (`DISCLAIMER`) | 全部 | — |
+| `tools/project.py` | プロジェクト名・タイトル・部品のグレード (`GRADE`)・資料の注意書き (`DISCLAIMER`) | 全部 | — |
 | `tools/kicad_env.py` | KiCad の場所の検出 (`python3 tools/kicad_env.py` で表示) | なし (環境変数 `KICAD_SHARE` / `KICAD_PYTHON` で上書き可) | 全部 |
 | `tools/gen_schematic.py` | 回路の定義 → 回路図・BOM・購入リスト | `PROJECT`、`FP`、`SHOP` / `EXTRA_BUY` / `OTHER_BUY`、**`PARTS`**、描画の `put` / `WIRES` / `GNDS` / `LABELS` / `TEXTS`、タイトル | ライブラリ読み込み、描画エンジン (`main`)、`write_outputs` |
 | `tools/render_sch.sh` / `check_netlist.py` | ネットリスト照合 (不足・余計・名前違い) + ERC + PDF | なし | 全部 |
