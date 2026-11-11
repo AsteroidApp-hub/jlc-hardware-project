@@ -30,7 +30,7 @@ Documentation and comments are in Japanese.
 | | チャット (ブラウザ / デスクトップアプリ) | VS Code + Claude Code |
 |---|---|---|
 | できたファイル | 1 つずつダウンロードして開く | **自分のフォルダに直接できる**。左のエクスプローラーにすぐ並ぶ |
-| 確認 | ダウンロードした場所を探して開く | 画像はそのまま VS Code で表示。HTML・PDF・KiCad はクリックや右クリックの「Finder で表示」/「エクスプローラーで表示」 ですぐ開ける |
+| 確認 | ダウンロードした場所を探して開く | 画像はそのまま VS Code で表示。HTML・PDF・KiCad はクリックや右クリックの「Finder で表示」/「エクスプローラーで表示」ですぐ開ける |
 | 修正 | 直したらまたダウンロード | 同じフォルダのファイルが上書きされるので、開き直すだけ |
 | KiCad・ngspice・Python | 使えない (環境が無い) | **自分のパソコンのソフトをそのまま使う**。回路図の照合・DRC・シミュレーション・ガーバー出力まで自動で行う |
 | 変更の確認 | なし | 変更前後の差分が並べて表示され、変更ごとに採用・却下を選べる |
@@ -99,7 +99,7 @@ ngspice は winget に無いため、公式サイトの Windows 版を `%LOCALAP
 
 #### macOS
 
-1. VS Code を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も
+1. VS Code を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も入れる
 2. VS Code の拡張機能 (`Cmd + Shift + X`) で「Claude Code」(発行元 Anthropic) を検索してインストール。Claude のパネルを開いてサインイン
 3. VS Code のターミナル (メニュー「ターミナル」→「新しいターミナル」、英語表示では Terminal → New Terminal) で、この Skill を入れる
 
@@ -116,9 +116,9 @@ ngspice は winget に無いため、公式サイトの Windows 版を `%LOCALAP
 
 #### Windows
 
-1. VS Code を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も
+1. VS Code を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も入れる
 2. Git for Windows を https://git-scm.com/downloads/win からインストール (設定はそのままで可)。
-   Skill の取得と、Claude Code がコマンドを実行するのに使います
+   Skill を取得するときと、Claude Code がコマンドを実行するときに使います
 3. VS Code の拡張機能 (`Ctrl + Shift + X`) で「Claude Code」(発行元 Anthropic) を検索してインストール。Claude のパネルを開いてサインイン
 4. VS Code のターミナル (PowerShell) で、この Skill を入れる
 
