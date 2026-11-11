@@ -1,10 +1,10 @@
 # jlc-hardware-project
 
-小型の電子機器を **要件 → 部品選定 → KiCad 回路図 → ngspice シミュレーション → 板金筐体 → 基板 → 発注データ → 資料** まで
-一貫して設計するための [Claude Code](https://code.claude.com/docs/en/overview) 用 Skill です。
+要件 → 部品選定 → KiCad 回路図 → ngspice シミュレーション → 板金筐体 → 基板 → 発注データ → 資料まで、
+小型の電子機器を一貫して設計するための [Claude Code](https://code.claude.com/docs/en/overview) 用 Skill です。
 
 - 基板は JLCPCB (SMD 実装は基本部品のみ)、筐体は JLCCNC の板金で作る前提
-- 手はんだ部品は国内通販 (秋月電子通商・千石電商・Digi-Key Japan など) で、購入リンク付きのリストを作る
+- 手はんだ部品は国内通販 (秋月電子通商・千石電商・Digi-Key Japan など) で買う前提で、購入リンク付きのリストを作る
 - 2ch P48 ファンタム電源の実例で一通り動いた雛形スクリプト一式 (`assets/template/`) を同梱
 
 A Claude Code skill for end-to-end small hardware projects: KiCad schematic and PCB generated from a Python part list,
@@ -19,9 +19,9 @@ Documentation and comments are in Japanese.
 4. 購入リンク付きの部品リスト (送料を抑えるよう店をまとめる)
 5. 原寸チェック用の基板図 (A4・1:1) と、設計の根拠 (計算とシミュレーションの対比)
 
-## おすすめの使い方: VS Code + Claude Code 拡張機能
+## VS Code と Claude Code 拡張機能での使い方
 
-この Skill は **VS Code (無料のエディター) の Claude Code 拡張機能** で使うのがおすすめです。
+この Skill は VS Code (無料のエディター) の Claude Code 拡張機能で使うのがおすすめです。
 
 ### ブラウザやデスクトップアプリのチャットと比べたメリット
 
@@ -33,21 +33,22 @@ Documentation and comments are in Japanese.
 | 確認 | ダウンロードした場所を探して開く | 画像はそのまま VS Code で表示。HTML・PDF・KiCad はクリックや右クリックの「Finder で表示」/「エクスプローラーで表示」 ですぐ開ける |
 | 修正 | 直したらまたダウンロード | 同じフォルダのファイルが上書きされるので、開き直すだけ |
 | KiCad・ngspice・Python | 使えない (環境が無い) | **自分のパソコンのソフトをそのまま使う**。回路図の照合・DRC・シミュレーション・ガーバー出力まで自動で行う |
-| 変更の確認 | — | 変更前後の差分が並べて表示され、変更ごとに採用・却下を選べる |
-| 指示の出し方 | ファイルの中身を貼り付ける | `@ファイル名` でファイルを指定、選択した部分もそのまま伝わる |
+| 変更の確認 | なし | 変更前後の差分が並べて表示され、変更ごとに採用・却下を選べる |
+| 指示の出し方 | ファイルの中身を貼り付ける | `@ファイル名` でファイルを指定でき、選択した部分もそのまま伝わる |
 | 管理 | 会話ごとにばらばら | 1 機器 = 1 フォルダ。Git で履歴も残せる |
 
-あると便利な VS Code 拡張機能 (どちらも無料・任意): **Live Preview** (Microsoft。HTML 資料を VS Code 内で表示)、**vscode-pdf** (PDF を VS Code 内で表示)。
+あると便利な VS Code 拡張機能は、Live Preview (Microsoft。HTML 資料を VS Code 内で表示) と vscode-pdf (PDF を VS Code 内で表示) です。
+どちらも無料で、入れるかどうかは任意です。
 
 ### 必要なもの
 
 - Claude の有料プラン (Pro / Max / Team / Enterprise) または Claude Console のアカウント。無料プランでは Claude Code を使えません
 - パソコン: macOS、または Windows 10 (1809 以降) / 11
 
-### 導入手順 (かんたん: コマンド 1 行でまとめて入れる)
+### 導入手順
 
 設計に必要なソフト (KiCad・ngspice・Python・uv・Git)、VS Code と Claude Code 拡張機能、この Skill、
-CAD 用の Python 環境を **まとめて入れるスクリプト** を用意しています。すでに入っているものは飛ばすので、何度実行しても大丈夫です。
+CAD 用の Python 環境を、コマンド 1 行でまとめて入れるスクリプトを用意しています。すでに入っているものは飛ばすので、何度実行しても大丈夫です。
 全部で 10〜20 分ほどかかります (通信速度によります)。
 
 #### macOS
@@ -66,31 +67,31 @@ Homebrew (Mac 用のソフト管理ツール) が無ければ、最初に自動�
 
 #### Windows
 
-1. スタートメニューで「PowerShell」と入力して **Windows PowerShell** を開く
+1. スタートメニューで「PowerShell」と入力して Windows PowerShell を開く
 2. 次の 1 行を貼り付けて Enter
 
    ```powershell
    irm https://raw.githubusercontent.com/AsteroidApp-hub/jlc-hardware-project/main/setup/install_windows.ps1 | iex
    ```
 
-3. 途中で「このアプリがデバイスに変更を加えることを許可しますか?」と出たら **「はい」**
+3. 途中で「このアプリがデバイスに変更を加えることを許可しますか?」と出たら「**はい**」
 4. 最後に「確認」の一覧がすべて `[OK]` になれば完了。PowerShell と VS Code は一度閉じて開き直す
 
-winget (Windows 標準のソフト管理ツール) を使います。「winget が見つからない」と出たら、Microsoft Store で「アプリ インストーラー」を入れて (更新して) からもう一度実行してください。
+winget (Windows 標準のソフト管理ツール) を使います。「winget が見つからない」と出たら、Microsoft Store で「アプリ インストーラー」を入れるか更新してから、もう一度実行してください。
 ngspice は winget に無いため、公式サイトの Windows 版を `%LOCALAPPDATA%\ngspice` に入れます。
 
 #### 入れたあと
 
 1. VS Code を開き、左のバーの Claude のアイコン (または `Cmd + Esc` / `Ctrl + Esc`) から Claude にサインイン
-2. 状態はいつでも次のコマンドで確認できます (VS Code の Claude に「環境を確認して」と頼んでも同じです)
+2. 環境の状態はいつでも次のコマンドで確認できます (VS Code の Claude に「環境を確認して」と頼んでも同じです)
 
    ```sh
    python3 ~/.claude/skills/jlc-hardware-project/setup/check.py          # macOS
    py -3 "$env:USERPROFILE\.claude\skills\jlc-hardware-project\setup\check.py"   # Windows (PowerShell)
    ```
 
-スクリプトの中身は [`setup/`](setup/) で確認できます。オプション: VS Code を入れない場合は実行前に
-`export SKIP_VSCODE=1` (macOS) / `$env:SKIP_VSCODE = "1"` (Windows)、内容の表示だけなら `DRY_RUN=1`。
+スクリプトの中身は [`setup/`](setup/) で確認できます。
+オプションとして、VS Code を入れない場合は実行前に `export SKIP_VSCODE=1` (macOS) / `$env:SKIP_VSCODE = "1"` (Windows) を設定し、入れる内容を表示するだけなら `DRY_RUN=1` を使います。
 
 <details>
 <summary>手動で入れる場合 (スクリプトを使わない)</summary>
@@ -98,16 +99,16 @@ ngspice は winget に無いため、公式サイトの Windows 版を `%LOCALAP
 
 #### macOS
 
-1. **VS Code** を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も
-2. VS Code の拡張機能 (`Cmd + Shift + X`) で **「Claude Code」 (発行元 Anthropic)** を検索してインストール。Claude のパネルを開いてサインイン
-3. **この Skill を入れる**: VS Code のターミナル (メニュー「ターミナル」→「新しいターミナル」、英語表示では Terminal → New Terminal) で
+1. VS Code を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も
+2. VS Code の拡張機能 (`Cmd + Shift + X`) で「Claude Code」(発行元 Anthropic) を検索してインストール。Claude のパネルを開いてサインイン
+3. VS Code のターミナル (メニュー「ターミナル」→「新しいターミナル」、英語表示では Terminal → New Terminal) で、この Skill を入れる
 
    ```sh
    git clone https://github.com/AsteroidApp-hub/jlc-hardware-project.git ~/.claude/skills/jlc-hardware-project
    ```
 
-   (git が無いと言われたら、表示に従って「コマンドライン・デベロッパツール」をインストールしてからもう一度)
-4. **設計用のソフト** を入れる
+   git が無いと言われたら、表示に従って「コマンドライン・デベロッパツール」をインストールしてから、もう一度実行する
+4. 設計用のソフトを入れる
    - KiCad 9 以降: https://www.kicad.org/download/
    - ngspice: [Homebrew](https://brew.sh/) で `brew install ngspice`
    - uv (Python の環境づくり): `curl -LsSf https://astral.sh/uv/install.sh | sh`
@@ -115,45 +116,45 @@ ngspice は winget に無いため、公式サイトの Windows 版を `%LOCALAP
 
 #### Windows
 
-1. **VS Code** を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も
-2. **Git for Windows** を https://git-scm.com/downloads/win からインストール (設定はそのままで可)。
+1. VS Code を https://code.visualstudio.com/ からインストール (1.94 以降)。日本語表示にするなら拡張機能「Japanese Language Pack」も
+2. Git for Windows を https://git-scm.com/downloads/win からインストール (設定はそのままで可)。
    Skill の取得と、Claude Code がコマンドを実行するのに使います
-3. VS Code の拡張機能 (`Ctrl + Shift + X`) で **「Claude Code」 (発行元 Anthropic)** を検索してインストール。Claude のパネルを開いてサインイン
-4. **この Skill を入れる**: VS Code のターミナル (PowerShell) で
+3. VS Code の拡張機能 (`Ctrl + Shift + X`) で「Claude Code」(発行元 Anthropic) を検索してインストール。Claude のパネルを開いてサインイン
+4. VS Code のターミナル (PowerShell) で、この Skill を入れる
 
    ```powershell
    git clone https://github.com/AsteroidApp-hub/jlc-hardware-project.git "$env:USERPROFILE\.claude\skills\jlc-hardware-project"
    ```
 
-5. **設計用のソフト** を入れる
+5. 設計用のソフトを入れる
    - KiCad 9 以降: https://www.kicad.org/download/
-   - Python 3: https://www.python.org/downloads/ (インストール画面で **「Add python.exe to PATH」にチェック**)
+   - Python 3: https://www.python.org/downloads/ (インストール画面で「**Add python.exe to PATH**」にチェック)
    - ngspice: https://ngspice.sourceforge.io/download.html から Windows 64bit 版を取得して展開し (7-Zip などで)、展開した `Spice64\bin` フォルダを環境変数 PATH に追加
    - uv: PowerShell で `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
    - `kicad-cli` を使えるようにする: `C:\Program Files\KiCad\<版>\bin` を環境変数 PATH に追加
    - (任意) PDF を画像にする poppler (`pdftoppm`)。無くても動くが、基板レイアウト画像の切り抜きなど一部が簡略になる
 
-PATH の追加が難しければ、**Claude にそのまま頼めます** (例: 「KiCad と ngspice を使えるように PATH を設定して」)。
+PATH の追加が難しければ、Claude にそのまま頼めます (例: 「KiCad と ngspice を使えるように PATH を設定して」)。
 
-#### 確認 (手動)
+#### 手動で入れたあとの確認
 
 VS Code を開き直し、Claude のパネルで次のように話しかけます。
 
 > jlc-hardware-project の Skill で、設計に必要なソフト (KiCad・ngspice・Python・uv) が使えるか確認して
 
-足りないものがあれば、Claude が入れ方を案内します (筐体や図を作るための Python の仮想環境もこのとき作れます)。
+足りないものがあれば、Claude が入れ方を案内します。筐体や図を作るための Python の仮想環境も、このとき作れます。
 
 </details>
 
 ### 使い方
 
 1. 機器ごとに空のフォルダを作り、VS Code で開く (メニュー「ファイル」→「フォルダーを開く」、英語表示では File → Open Folder)
-2. Claude のパネル (`Cmd + Esc` / `Ctrl + Esc`) で、作りたいものを話す。例:
+2. Claude のパネル (`Cmd + Esc` / `Ctrl + Esc`) で、作りたいものを次の例のように話す
 
    > マイク用の 2ch ファンタム電源を作りたいです。基板は JLCPCB、筐体は JLCCNC の板金で。部品は国内通販で買いたいです
 
 3. Claude が要件を質問し、部品選定 → 回路図 → シミュレーション → 筐体 → 基板 → 発注データ → 資料 の順に進めます。
-   できた資料は、フォルダの **`はじめにお読みください.html`** から全部たどれます
+   できた資料はフォルダの `はじめにお読みください.html` から全部たどれます
 
 ターミナルで Claude Code を使う場合も同じ Skill が使われます (CLI の導入は [公式の手順](https://code.claude.com/docs/en/setup))。
 
@@ -163,7 +164,7 @@ VS Code を開き直し、Claude のパネルで次のように話しかけま�
 - Windows: 一括インストールスクリプト・KiCad の場所の検出・Python や ngspice のコマンド名の違い・日本語フォントに対応済みですが、
   Windows の実機での通し確認はまだです。うまく動かない場合は Issue で教えてください
 
-## 必要なソフト (まとめ)
+## 必要なソフトの一覧
 
 | ソフト | 用途 |
 |---|---|
