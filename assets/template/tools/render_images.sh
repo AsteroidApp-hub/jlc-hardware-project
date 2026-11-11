@@ -7,10 +7,12 @@
 #   基板3D_斜め.png   … KiCad の 3D 表示 (斜め上から。部品の高さが分かる)
 #   基板レイアウト.png … 配線 (赤 = 表面、青 = 裏面) とシルク
 set -e
+# Python の呼び名 (Windows では python3 が無く python のことがある。環境変数 PYTHON で指定も可)
+PY="${PYTHON:-$(command -v python3 >/dev/null 2>&1 && echo python3 || echo python)}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${OUT:-$ROOT}"
 mkdir -p "$OUT"
-P="$(cd "$ROOT/tools" && python3 -c 'from project import PROJECT; print(PROJECT)' 2>/dev/null || echo P48_2CH)"
+P="$(cd "$ROOT/tools" && "$PY" -c 'from project import PROJECT; print(PROJECT)' 2>/dev/null || echo P48_2CH)"
 PCB="$ROOT/kicad/$P.kicad_pcb"
 TMP="$(mktemp -d)"
 
@@ -34,7 +36,7 @@ kicad-cli pcb export pdf --mode-single --layers B.Cu,F.Cu,F.Silkscreen,Edge.Cuts
 # ページ (A4 横、1:1) から基板の外形 (Edge.Cuts) の範囲だけ切り抜く
 PX=8000   # A4 の長辺 297mm を何ピクセルにするか
 topng "$TMP/layout.pdf" "$TMP/page.png" $PX
-CROP="$(python3 - "$PCB" $PX <<'PY'
+CROP="$("$PY" - "$PCB" $PX <<'PY'
 import re, sys
 t = open(sys.argv[1]).read()
 xs, ys = [], []

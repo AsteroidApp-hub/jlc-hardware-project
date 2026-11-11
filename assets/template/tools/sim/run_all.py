@@ -9,7 +9,7 @@ T2 定常リップル     : 昇圧出力のリップルとスペクトル (オ�
 T3 周波数特性 (AC)  : 昇圧出力 → +48V / マイク出力 への伝達 (0.1%抵抗と電解±20%の誤差込み)、マイク信号の通過特性
 T4 電源ON/OFF       : 0〜14秒。+48Vの立ち上がりと、XLR出力に出る過渡電圧
 """
-import os, subprocess, sys
+import shutil, os, subprocess, sys
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -25,7 +25,7 @@ OUTD = os.path.join(ROOT, "シミュレーション")
 WORK = os.path.join(HERE, "out")
 os.makedirs(OUTD, exist_ok=True)
 os.makedirs(WORK, exist_ok=True)
-for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP"):
+for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP"):
     if any(f in x.name for x in font_manager.fontManager.ttflist):
         plt.rcParams["font.family"] = f
         break
@@ -34,6 +34,9 @@ plt.rcParams.update({"figure.dpi": 110, "axes.grid": True, "grid.alpha": 0.3, "f
 FSW = 153e3
 RESULTS = []
 
+
+# ngspice のコマンド (Windows 版は ngspice_con.exe がバッチ実行用。環境変数 NGSPICE で指定も可)
+NGSPICE = os.environ.get("NGSPICE") or shutil.which("ngspice_con") or shutil.which("ngspice") or "ngspice"
 
 def run(name, body, signals, wr_step=None):
     """ネットリストを実行し、signals の列を numpy 配列で返す (先頭列は時間/周波数)"""
@@ -47,7 +50,7 @@ def run(name, body, signals, wr_step=None):
     net = f"* {name}\n" + body + "\n.control\n" + "\n".join(ctrl) + "\n.endc\n.end\n"
     path = os.path.join(WORK, name + ".cir")
     open(path, "w").write(net)
-    r = subprocess.run(["ngspice", "-b", path], capture_output=True, text=True)
+    r = subprocess.run([NGSPICE, "-b", path], capture_output=True, text=True)
     if not os.path.exists(data):
         print(r.stdout[-3000:], r.stderr[-3000:])
         raise SystemExit(f"{name}: ngspice failed")

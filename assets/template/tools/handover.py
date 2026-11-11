@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
 from matplotlib import font_manager
 
-for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP"):
+for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP"):
     if any(f in x.name for x in font_manager.fontManager.ttflist):
         plt.rcParams["font.family"] = f
         break

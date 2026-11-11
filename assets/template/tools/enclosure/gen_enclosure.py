@@ -319,7 +319,7 @@ def preview(bottom, cover, feats):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     from matplotlib import font_manager
-    for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP"):
+    for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP"):
         if any(f in x.name for x in font_manager.fontManager.ttflist):
             plt.rcParams["font.family"] = f
             break
@@ -414,7 +414,7 @@ def drawing(feats, flats):
     from matplotlib.backends.backend_pdf import PdfPages
     from matplotlib.patches import Circle as MCircle, Rectangle as MRect
     from matplotlib import font_manager
-    for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP"):
+    for f in ("Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP"):
         if any(f in x.name for x in font_manager.fontManager.ttflist):
             plt.rcParams["font.family"] = f
             break
