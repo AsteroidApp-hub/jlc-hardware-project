@@ -1,11 +1,12 @@
 # jlc-hardware-project
 
-要件 → 部品選定 → KiCad 回路図 → ngspice シミュレーション → 板金筐体 → 基板 → 発注データ → 資料まで、
+要件 → パネル配置 → 部品選定 → KiCad 回路図 → ngspice シミュレーション → 板金筐体 → 基板 → 発注データ → 資料まで、
 小型の電子機器を一貫して設計するための [Claude Code](https://code.claude.com/docs/en/overview) 用 Skill です。
 
 - 基板は JLCPCB (SMD 実装は基本部品のみ)、筐体は JLCCNC の板金で作る前提
 - 手はんだ部品は国内通販 (秋月電子通商・千石電商・Digi-Key Japan など) で買う前提で、購入リンク付きのリストを作る
 - 部品のグレード (信号の通り道にオーディオ用の部品を使うか、汎用にするか) を最初に選び、費用は送料込みの合計で比べる
+- 回路図を作る前に、パネル配置 (ボタン・コネクター・LED の位置) と基板の構成 (電源部を音声と同じ基板にするか、別基板にするか) を決める。配置は図で確かめられ、あとで変えても筐体と基板を作り直すだけで済む
 - 2ch P48 ファンタム電源の実例で一通り動いた雛形スクリプト一式 (`assets/template/`) を同梱
 
 A Claude Code skill for end-to-end small hardware projects: KiCad schematic and PCB generated from a Python part list,
@@ -172,7 +173,7 @@ VS Code を開き直し、Claude のパネルで次のように話しかけま�
 
    > マイク用の 2ch ファンタム電源を作りたいです。基板は JLCPCB、筐体は JLCCNC の板金で。部品は国内通販で買いたいです
 
-3. Claude が要件を質問し、部品選定 → 回路図 → シミュレーション → 筐体 → 基板 → 発注データ → 資料 の順に進めます。
+3. Claude が要件を質問し、パネル配置の図を見せます。配置を確かめてから、部品選定 → 回路図 → シミュレーション → 筐体 → 基板 → 発注データ → 資料 の順に進めます。
    できた資料はフォルダの `はじめにお読みください.html` から全部たどれます
 
 ターミナルで Claude Code を使う場合も同じ Skill が使われます (CLI の導入は [公式の手順](https://code.claude.com/docs/en/setup))。

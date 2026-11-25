@@ -20,20 +20,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.dirname(HERE))
 from project import PROJECT  # noqa: E402
+# 外形・パネル部品の位置・パネルの印刷は tools/panel_layout.py で決める (回路図より先に決める工程)
+from panel_layout import (T, X, Y, H_IN, STANDOFF, PCB_T, PCB_TOP, XLR_HOLE, XLR_SCREW,  # noqa: E402
+                          XLR_AXIS_Z, XLR_X, SW_POS, SW_HOLE, LED_POS, LED_HOLE, DC_POS, DC_HOLE, SILK)
 OUT = os.path.join(ROOT, "筐体")
 os.makedirs(OUT, exist_ok=True)
 NEUTRIK_DIR = os.environ.get("NEUTRIK_STEP_DIR", "")   # 干渉チェック用 (任意)
 
 # ------------------------------------------------------------------ 基本寸法
-T = 1.5                 # 板厚 A5052
 R_IN = 1.25             # 曲げ内R (JLCCNC: 1.5mm 板の外R 2.75)
 R_O = R_IN + T          # 曲げ外R
 K = 0.44                # Kファクター (展開長の計算用)
 BA = math.pi / 2 * (R_IN + K * T)   # 90°曲げの曲げ代
 
-X = 107.0               # ボトム外幅 (左右の立ち上がり外面間)
-Y = 91.0                # 奥行き (前後パネル外面間)
-H_IN = 36.0             # 内寸高さ (底板上面〜天板下面)
 HB = T + H_IN           # 前後パネルの高さ (底面から)
 LIP_H = 14.0            # 左右の立ち上がり (カバー固定用) の高さ
 LIP_Y = (6.0, 85.0)     # 立ち上がりの範囲 (前後の角は逃がし)
@@ -42,22 +41,9 @@ CLEAR = 0.2             # カバー側板と立ち上がりのすき間
 XT0, XT1 = -CLEAR - T, X + CLEAR + T     # カバー外面の x 範囲
 HT = HB + T             # 全高
 
-STANDOFF = 6.0          # 基板スペーサー高さ
-PCB_T = 1.6
 PCB_BOT = T + STANDOFF
-PCB_TOP = PCB_BOT + PCB_T
 PCB_X = (5.5, 101.5)    # 基板外形 (立ち上がり・圧入ナット・カバー固定ねじの先端から逃がす)
 PCB_Y = (T + 1.0, Y - T - 1.0)
-XLR_AXIS_Z = PCB_TOP + 12.5          # Neutrik AA: 基板上面から軸まで 12.5mm (STEPモデルで確認)
-XLR_HOLE = 22.5                       # パネル穴 (Neutrik: 22以上)
-XLR_SCREW = 3.2                       # 取付穴 (Neutrik: 3.2以上), 対角 19.8
-XLR_X = {"L": 21.0, "R": 53.0}        # チャンネルの中心 x
-SW_POS = (80.0, 25.0)                 # 電源SW (MS-500K-B, M6ブッシュ)
-SW_HOLE = 6.2
-LED_POS = (93.0, PCB_TOP + 2.0)       # 3mm LED 横向き (フットプリント: LED中心が基板上面から2.0mm)
-LED_HOLE = 3.2
-DC_POS = (90.0, PCB_TOP + 6.5)        # MJ-179PH: 基板上面から中心 6.5mm
-DC_HOLE = 8.5
 PCB_HOLES = [(37.0, 12.0), (37.0, 79.0), (98.0, 25.5), (97.5, 70.0)]   # 基板設計 (工程4) で決定   # M3 スペーサー位置
 SIDE_SCREWS = [(20.0, 8.5), (71.0, 8.5)]   # (y, z) カバー側板 ↔ 立ち上がり
 NUT_HOLE = 4.2          # M3 圧入ナット (クリンチナット) の下穴
@@ -248,14 +234,7 @@ FONT = next((f for f in ("/System/Library/Fonts/Supplemental/Arial Bold.ttf",
                          "/System/Library/Fonts/Supplemental/Arial.ttf",
                          "/Library/Fonts/Arial.ttf") if os.path.exists(f)), None)
 
-SILK = {
-    # パネルを外から見た座標 (u: 左→右, w: 下→上)。前面は u = x、後面は u = X - x
-    "front": [("MIC IN", 37.0, 35.3, 2.5), ("L", XLR_X["L"], 6.0, 3.5), ("R", XLR_X["R"], 6.0, 3.5),
-              ("PHANTOM", SW_POS[0], 34.3, 2.4), ("ON", SW_POS[0], 31.4, 1.8), ("OFF", SW_POS[0], 18.4, 1.8),
-              ("48V", LED_POS[0], LED_POS[1] + 4.0, 2.6), ("P48 2CH", 98.0, 33.6, 2.0)],
-    "rear": [("OUTPUT", X - 37.0, 35.3, 2.5), ("L", X - XLR_X["L"], 6.0, 3.5), ("R", X - XLR_X["R"], 6.0, 3.5),
-             ("DC 12-18V", X - DC_POS[0], DC_POS[1] + 7.5, 2.4), ("+  (o-  -", X - DC_POS[0], DC_POS[1] - 8.0, 2.2)],
-}
+# SILK (パネルの印刷) は tools/panel_layout.py にある
 
 
 def silk_dxf(feats):

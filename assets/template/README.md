@@ -14,12 +14,13 @@
 | ファイル | 役割 | プロジェクトごとに書き換える部分 | そのまま使える部分 |
 |---|---|---|---|
 | `tools/project.py` | プロジェクト名・タイトル・部品のグレード (`GRADE`)・資料の注意書き (`DISCLAIMER`) | 全部 | — |
+| `tools/panel_layout.py` | 外形・パネル部品の位置と穴・パネルの印刷・基板の構成 (`POWER_BOARD`)。実行すると配置図と確認ページ (`パネル配置/`) を作る。**回路図より先に決める** | 全部 | 配置図の描画・自動チェック |
 | `tools/kicad_env.py` | KiCad の場所の検出 (`python3 tools/kicad_env.py` で表示) | なし (環境変数 `KICAD_SHARE` / `KICAD_PYTHON` で上書き可) | 全部 |
 | `tools/gen_schematic.py` | 回路の定義 → 回路図・BOM・購入リスト | `PROJECT`、`FP`、`SHOP` / `EXTRA_BUY` / `OTHER_BUY`、**`PARTS`**、描画の `put` / `WIRES` / `GNDS` / `LABELS` / `TEXTS`、タイトル | ライブラリ読み込み、描画エンジン (`main`)、`write_outputs` |
 | `tools/render_sch.sh` / `check_netlist.py` | ネットリスト照合 (不足・余計・名前違い) + ERC + PDF | なし | 全部 |
 | `tools/sim/build.py` | PARTS → ngspice | `MODELS` (部品モデル)、`ESR` / `DERATE`、シンボル対応の追加、試験用に置き換えるコネクタ | 枠組み |
 | `tools/sim/run_all.py` | 試験 T1〜T6 とグラフ・結果 | 試験の中身 (測るノード名・期待値) | `run` / `note` / `write_md` |
-| `tools/enclosure/gen_enclosure.py` | 板金筐体 → STEP・図面・DXF・制約 JSON | 寸法定数 (`X`, `Y`, `H_IN`, `STANDOFF` …)、パネル部品の位置、`SILK`、メーカー STEP の置き方 | 曲げ・穴・展開図・図面・プレビューの関数 |
+| `tools/enclosure/gen_enclosure.py` | 板金筐体 → STEP・図面・DXF・制約 JSON | 筐体の作り (立ち上がり・ねじ・圧入ナット・基板の取付穴)、メーカー STEP の置き方。外形とパネル部品の位置は `panel_layout.py` から読む | 曲げ・穴・展開図・図面・プレビューの関数 |
 | `tools/enclosure/fit_check.py` | 基板 STEP を筐体に入れて干渉確認 | なし (XLR の配置関数は gen_enclosure) | 全部 |
 | `tools/gen_pcb.py` | 配置 + 配線 → kicad_pcb | `POS` (配置)、`NARROW` / `ORDER_*`、シルク文字、許容するコートヤード重なり | 格子ルーター、配置チェック、ゾーン |
 | `tools/print_check.py` | 原寸チェック用の基板図 (A4・1:1・50mm 目盛り) と手順書 | `CHECK` (実物で確かめる部品と見る点)、基板以外の確認事項 | PDF 出力・目盛り・手順の枠組み |
@@ -35,6 +36,7 @@
 ## 実行順
 
 ```sh
+python3 tools/panel_layout.py                                      # パネル配置図 (最初に。ユーザーに確かめてもらう)
 python3 tools/gen_schematic.py && sh tools/render_sch.sh <work>    # 回路図 + 照合 + ERC (problems 0 / ERC 0 件が目標)
 <venv>/bin/python tools/enclosure/gen_enclosure.py                 # 筐体 (先に) → pcb_constraints.json
 <KiCad python> tools/gen_pcb.py --check && <KiCad python> tools/gen_pcb.py   # 基板
@@ -47,6 +49,9 @@ python3 tools/export_fab.py                                        # 発注デ�
 雛形のスクリプトは 実例の値のまま動く。最初にそのまま実行して環境が整っているか確かめてから書き換えるとよい。
 
 ## チャンネル数などを変えるとき
+
+パネルの配置を変えるときは `panel_layout.py` だけを直し、配置図 → 筐体 → 基板 (パネル近くの `POS`) → 組立確認 → 画像 を作り直す。
+部品が変わらなければ、回路図とシミュレーションは作り直さない。
 
 回路の繰り返し (雛形では CH L / CH R) は `gen_schematic.py` の `channel()` (部品)、`place_channel()` (配置)、`channel_wires()` (配線) を
 チャンネルごとに呼んでいる。数を変えるときは、呼び出しのほかに次も直す: 電源ラインの配線の終点 (例: `R201.1`)、`TEXTS` の見出しと注記、
