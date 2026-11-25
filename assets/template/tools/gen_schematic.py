@@ -106,11 +106,16 @@ FP = dict(
 AKI = "秋月電子通商"
 DK = "Digi-Key Japan"
 SEN = "千石電商"
+MONO = "モノタロウ"
+MARUTSU = "マルツ"
 # 送料 (2026-11-11 確認): (送料, 送料無料の条件額, 条件の説明)
 SHIPPING = {
     AKI: (550, 11000, "佐川 1個口 ¥550。商品合計 税込¥11,000 以上で無料"),
     DK: (2000, 6000, "商品代金 ¥6,000 未満は ¥2,000、¥6,000 以上で無料 (税込/税抜の記載なし → 税抜で ¥6,000 以上にしておく)"),
     SEN: (350, 10000, "ネコポス/ゆうパケット ¥350 (厚さ3cm・1kg・¥3,000 以内。注文時に選択)。通常便は ¥660、¥10,000 超で無料"),
+    # 2026-11-25 確認 (公式のヘルプ・ご利用ガイド)。どちらも自動では商品ページを読めない (403) ので、価格は検索結果の表示で、注文時に確かめる
+    MONO: (550, 3500, "税別 ¥3,500 以上で無料、未満は ¥550 (税込)"),
+    MARUTSU: (550, 3000, "税別 ¥3,000 以上で無料、未満は宅急便 ¥550・ネコポス ¥385 (税込)"),
 }
 SHOP = {
     "UC3843AN": (DK, "UC3843AN (Texas Instruments)",
@@ -584,14 +589,18 @@ def write_outputs():
               "UC3843AN": 216.1}   # 10個以上の単価 (Digi-Key, 税抜)
     lines = ["# 部品購入リスト (国内通販)", "",
              TITLE + " / 基板1台分。価格は %s 時点の確認値。" % datetime.date.today().isoformat(),
-             "", "- 秋月電子通商・千石電商の価格は税込、Digi-Key Japanの価格は税抜",
+             "", "- 価格の税込・税抜は店ごとに違う (各店の小計の横に書いた)。送料と合計の表はすべて税込",
              "- **「購入数」で注文してください。** 必要数より多いのは、まとめ買いの単価・送料無料の条件・予備のため",
              ("- 部品のグレード: オーディオ用 (信号の通り道の電解は MUSE FW、フィルムは WIMA MKP4)" if AUDIO_GRADE else
               "- 部品のグレード: 汎用 (電解は低 ESR の一般品、フィルムは付けない)。給電抵抗の 0.1% は規格のため汎用でも変えない"),
              "- 購入先は 3 店にまとめた (Digi-Key でしか買えない部品 / 秋月でしか買えない部品 / ねじ類)。理由は最後の「送料」を参照",
              "- 在庫・価格は注文時に各ショップで確認してください", ""]
+    # 使った店だけを、この順で出す。価格の税込/税抜は店ごと (送料無料の条件も同じ基準で比べる)
+    TAX_BASIS = {DK: "税抜", AKI: "税込", SEN: "税込", MONO: "税抜", MARUTSU: "税抜"}
+    used = {SHOP[k][0] for k in need} | {e[0] for e in EXTRA_BUY}
+    shops = [x for x in (DK, AKI, SEN, MONO, MARUTSU) if x in used]
     total = {}
-    for shop in (DK, AKI, SEN):
+    for shop in shops:
         lines += ["## " + shop, "", "| 品名・型番 | 用途 (リファレンス) | 必要数 | 購入数 | 単価 | 小計 |",
                   "|---|---|---:|---:|---:|---:|"]
         sub = 0
@@ -617,7 +626,9 @@ def write_outputs():
             qty = f"{packs}パック ({packs * pack}個)" if pack > 1 else f"{n}"
             lines.append(f"| [{name}]({url}) | {use} | {n} | {qty} | ¥{price:,}{'/パック' if pack > 1 else ''} | ¥{cost:,} |")
         total[shop] = sub
-        lines += ["", f"**小計: ¥{sub:,}** ({'税抜' if shop == DK else '税込'})", ""]
+        lines += ["", f"**小計: ¥{sub:,}** ({TAX_BASIS[shop]})", ""]
+        if shop in (MONO, MARUTSU):
+            lines += [f"- {shop}の価格は検索結果の表示 (自動では商品ページを読めない)。**注文時にカートで価格と在庫を確かめる**", ""]
         if shop == DK:
             lines += ["- UC3843AN は 1 個予備 (DIP なので差し替えられる)。電解・フィルム・TVS は 10 個単価が使える数",
                       "- **YR1 (6.81kΩ) は 10 本買い、テスターで測って値の近い 2 本ずつを各チャンネルの R102/R103、R202/R203 に使う**", ""]
@@ -625,15 +636,15 @@ def write_outputs():
         lines += ["## その他 (ホームセンター・モノタロウ等)", "", "| 品名 | 数量 | 用途 |", "|---|---:|---|"]
         lines += [f"| {n} | {q} | {u} |" for n, q, u in OTHER_BUY] + [""]
     need_dk = sum(SHOP[k][3] * len(v) for k, v in need.items() if SHOP[k][0] == DK)
-    ship = {k: (0 if total[k] >= v[1] else v[0]) for k, v in SHIPPING.items()}
-    if ship[DK]:
+    ship = {k: (0 if total[k] >= SHIPPING[k][1] else SHIPPING[k][0]) for k in shops}
+    if ship.get(DK):
         short = SHIPPING[DK][1] - total[DK]
         print(f"注意: Digi-Key の小計 ¥{total[DK]:,} が送料無料の ¥{SHIPPING[DK][1]:,} に ¥{short:,} 足りない "
               f"(送料 ¥{SHIPPING[DK][0]:,})。足りない額が送料より小さければ、spare を増やすと得")
-    taxin = {AKI: total[AKI], SEN: total[SEN], DK: round(total[DK] * 1.1)}
+    taxin = {k: (round(total[k] * 1.1) if TAX_BASIS[k] == "税抜" else total[k]) for k in shops}
     lines += ["## 送料と合計", "",
               "| ショップ | 商品 (税込) | 送料 | 合計 | 送料の条件 |", "|---|---:|---:|---:|---|"]
-    lines += [f"| {k} | ¥{taxin[k]:,} | ¥{ship[k]:,} | ¥{taxin[k] + ship[k]:,} | {SHIPPING[k][2]} |" for k in (DK, AKI, SEN)]
+    lines += [f"| {k} | ¥{taxin[k]:,} | ¥{ship[k]:,} | ¥{taxin[k] + ship[k]:,} | {SHIPPING[k][2]} |" for k in shops]
     lines += [f"| **計** | ¥{sum(taxin.values()):,} | ¥{sum(ship.values()):,} | **¥{sum(taxin.values()) + sum(ship.values()):,}** | |", "",
               "### 店のまとめ方", "",
               "- **Digi-Key Japan**: Neutrik の基板用 XLR、"
@@ -641,7 +652,7 @@ def write_outputs():
               + "TE YR1 0.1%、P6KE24CA、DIP の UC3843 は秋月電子・千石電商に無い (2026-11 に検索して確認)。"
               "¥6,000 未満だと送料 ¥2,000 かかる。"
               + (f"必要数だけだと ¥{need_dk:,} (税抜) なので、予備と 10 個単価の数量に回して ¥6,000 以上にした"
-                 " (予備は修理や2台目に使える。YR1 は値の近い組を選べる)" if not ship[DK] else
+                 " (予備は修理や2台目に使える。YR1 は値の近い組を選べる)" if not ship.get(DK) else
                  f"今の数量では ¥{SHIPPING[DK][1] - total[DK]:,} 足りず、送料がかかる。"
                  "足りない額が送料より小さければ、予備を足して ¥6,000 以上にするほうが得"),
               "- **秋月電子通商**: トロイダル・DC ジャック・MOSFET・TVS (P4KE15CA)・スイッチ・LED などは秋月の品で基板を設計している。"
