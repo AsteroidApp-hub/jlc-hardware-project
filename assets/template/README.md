@@ -8,6 +8,8 @@
 2. 雛形を一度そのまま実行して環境を確かめた後に `PROJECT` を変えたら、古い `kicad/P48_2CH.*` や生成物は消してよい (ジェネレーターは毎回作り直す)。
 3. 自作フットプリントのライブラリ名 `Custom` (`kicad/Custom.pretty`、`fp-lib-table`、`gen_schematic.py` の `FP` の `Custom:`、`gen_pcb.py` の `LIBDIR`) は、そのままでよい。変えるなら 4か所を揃える。
 4. `README.md` と `*.example.md` は HTML 化の対象外。参考にしたら消してよい。
+5. 実例の計算・判定を持つスクリプト (`design_notes.py`、`sim/run_all.py`、`handover.py`、`print_check.py`) は、この回路に合わせて中身を書き換え、
+   先頭の `EXAMPLE` を `False` にする。`PROJECT` を変えたのに `EXAMPLE` が `True` のままだと、実例の前提で判定しないよう止まる。
 
 ## ファイルと書き換える場所
 

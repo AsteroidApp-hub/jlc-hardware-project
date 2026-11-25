@@ -13,6 +13,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import gen_schematic as sch  # noqa: E402
+EXAMPLE = True   # 雛形の実例 (P48) の中身のまま。この回路に合わせて書き換えたら False にする
+from project import require_rewritten  # noqa: E402
+require_rewritten("tools/design_notes.py", EXAMPLE)
 
 OUTD = os.path.join(ROOT, "設計根拠")
 SIM_MD = os.path.join(ROOT, "シミュレーション", "結果.md")

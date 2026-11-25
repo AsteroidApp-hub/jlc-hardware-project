@@ -12,3 +12,16 @@ GRADE = "audio"
 DISCLAIMER = ("この資料と設計は、AI (Claude) を使って作成したものです。誤りが含まれることがあるため、"
               "部品・基板・筐体の発注や通電の前に、人が内容を確かめてください。"
               "資料と設計は無保証で、使用によって生じた損害について作成者は責任を負いません。")
+
+# 雛形の実例。下の require_rewritten() が、実例の計算・判定のままのスクリプトを別のプロジェクトで実行しないよう止める
+EXAMPLE_PROJECT = "P48_2CH"
+
+
+def require_rewritten(script, example):
+    """実例 (2ch P48 ファンタム電源) の値・期待値で、別の回路を計算・判定しないための確認。
+    各スクリプトの先頭の EXAMPLE を、この回路に合わせて中身を書き換えたあとで False にする。"""
+    if example and PROJECT != EXAMPLE_PROJECT:
+        raise SystemExit(
+            f"{script} の中身は、雛形の実例 (2ch P48 ファンタム電源) の計算・判定のままです。\n"
+            f"この回路 ({TITLE}) に合わせて書き換えてから、{script} の先頭の EXAMPLE を False にしてください。\n"
+            "実例の値・期待値・部品番号を、この回路の判定に使わないでください。")
