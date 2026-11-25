@@ -46,6 +46,18 @@ def find_kicad_cli():
     return None
 
 
+def find_kicad_python():
+    """pcbnew が使える Python (KiCad 同梱)。環境変数 KICAD_PYTHON で上書きできる。"""
+    if os.environ.get("KICAD_PYTHON"):
+        return os.environ["KICAD_PYTHON"]
+    for g in ([r"C:\Program Files\KiCad\*\bin\python.exe"] if WIN else
+              ["/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/*/bin/python3"]):
+        m = sorted(glob.glob(g), reverse=True)
+        if m:
+            return m[0]
+    return shutil.which("python3")      # Linux: システムの python3 に pcbnew が入っていることが多い
+
+
 def main():
     print(f"=== jlc-hardware-project 環境確認 ({platform.system()} {platform.release()}) ===")
     item("Skill", os.path.exists(SKILL), SKILL if os.path.exists(SKILL) else "見つからない",
@@ -68,6 +80,21 @@ def main():
     else:
         item("ngspice", False, "見つからない",
              "macOS: brew install ngspice / Windows: インストールスクリプトが公式版を入れて PATH に追加する")
+
+    kpy = find_kicad_python()
+    kar_fix = f'"{kpy}" -m pip install git+https://github.com/AsteroidApp-hub/kicad-audio-router'
+    if kpy:
+        rc, out = run([kpy, "-c", "import pcbnew, kar; print(kar.__version__)"])
+        if rc == 0:
+            item("kicad-audio-router (基板の自動配線)", True, f"kar {out.splitlines()[-1]}  ({kpy})")
+        elif "pcbnew" in out:
+            item("kicad-audio-router (基板の自動配線)", False, f"{kpy} では pcbnew が使えない",
+                 "環境変数 KICAD_PYTHON に KiCad 同梱の Python を指定する")
+        else:
+            item("kicad-audio-router (基板の自動配線)", False, f"KiCad の Python ({kpy}) に入っていない",
+                 kar_fix + "  (KiCad を入れ直した・更新したときも入れ直す)")
+    else:
+        item("kicad-audio-router (基板の自動配線)", False, "KiCad の Python が見つからない", "KiCad を入れてから " + kar_fix)
 
     item("Python", sys.version_info >= (3, 9), f"{platform.python_version()} ({sys.executable})", "Python 3.9 以降を入れる")
 

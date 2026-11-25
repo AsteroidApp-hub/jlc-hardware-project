@@ -61,6 +61,44 @@ def table(head, rows):
     return "\n".join(out + ["| " + " | ".join(str(c) for c in r) + " |" for r in rows])
 
 
+def routing_section(n):
+    """基板の配線の節: kar (kicad-audio-router) の品質レポートから。gen_pcb.py を kar で実行したときだけ入る。
+    レポート全文と配線図も 設計根拠/ に写す (製作データの zip に入る)。"""
+    import json, shutil
+    rep = os.path.join(ROOT, "kicad", ".route", "kar_out")
+    qj = os.path.join(rep, sch.PROJECT + "_quality.json")
+    if not os.path.exists(qj):
+        return ""
+    q = json.load(open(qj, encoding="utf-8"))
+    shutil.copyfile(os.path.join(rep, sch.PROJECT + "_quality.md"), os.path.join(OUTD, "配線品質レポート.md"))
+    svg = os.path.join(rep, "配線図.svg")
+    if os.path.exists(svg):
+        shutil.copyfile(svg, os.path.join(OUTD, "配線図.svg"))
+    c, pr, g, pw, sm = q["coupling"], q["pairs"], q["gnd"], q["power"], q["summary"]
+    pairs = (f"{len(pr['items'])} 組: 長さの差 最大 {pr['max_mismatch_mm']:.1f} mm、ピンから離れた所で並んで走る割合 "
+             f"平均 {pr['avg_parallel_away_pct']:.0f} %" if pr["items"] else "なし")
+    far = "、".join(f"{f['pad']} ({f['net'].lstrip('/')}、{f['dist_mm']:.1f} mm)" for f in g["far"]) or "なし"
+    narrow = "、".join(sorted({x.get('net', '?').lstrip('/') for x in pw["narrow"]})) or "なし"
+    return f"""
+## {n}. 基板の配線
+
+配線は kicad-audio-router (kar) で引きました。ネットをアナログ・デジタル・電源・GND に分け、アナログの線をデジタルの銅箔から離し、
+SMD の GND パッドごとにビアを打ち、電源の線は太く引きます。下の値は配線を評価した結果です (全文は `配線品質レポート.md`、
+層ごとの図は `配線図.svg`)。
+
+{table(["項目", "結果", "見方"], [
+    ["評価の点数", f"{q['score']} / 100", "同じ基板の配線どうしを比べるための目安 (絶対的な合格点ではない)"],
+    ["未配線", f"{q['unrouted']}", "0 であること"],
+    ["アナログの線がデジタルの銅箔の 1mm 以内を走る長さ", f"{c['total_mm']['1.0']:.1f} mm", "0 に近いほどよい (クロックほど影響が大きい)"],
+    ["同じく 3mm 以内", f"{c['total_mm']['3.0']:.1f} mm", "短いほどよい"],
+    ["アナログの線の長さ・ビア", f"{sm['analog_length_mm']:.0f} mm、ビア {sm['analog_vias']} 個", "短く、ビアが少ないほどよい"],
+    ["差動ペア (HOT / COLD など)", pairs, "長さの差が小さく、並んで走る割合が高いほどよい (ピンの位置で決まる部分は除く)"],
+    ["ビアから 3mm より遠い GND パッド", f"{len(g['far'])} / {g['pads']}: {far}", "ベタの無いネット (シャーシなど) はビアを打たないので残ることがある"],
+    ["太さが足りない電源の線", narrow, "なしであること (細いピンへの引き込みは除く)"],
+])}
+"""
+
+
 def main():
     os.makedirs(OUTD, exist_ok=True)
     # ---- 入力条件
@@ -210,6 +248,7 @@ def main():
 {"- MUSE FW (100µF/100V) の在庫。代替は MUSE KW (UKW2A101MPD)" if sch.AUDIO_GRADE else "- 部品のグレードは汎用。音質を上げるなら、信号の通り道の電解を MUSE FW に替え、フィルム (C105 など) を付ける"}
 - リップルフィルターのトランジスタ (MMBT5551) の損失: (VFILT − 48V) × 出力電流 = 約 {(vfilt - v48) * iout * 1e3:.0f} mW (SOT-23 の定格 300mW 以内)
 """
+    md += routing_section(7)
     with open(os.path.join(OUTD, "設計根拠.md"), "w", encoding="utf-8") as f:
         f.write(md)
     import md2html

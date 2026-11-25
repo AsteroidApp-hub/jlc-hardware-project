@@ -7,6 +7,7 @@
 - 手はんだ部品は国内通販 (秋月電子通商・千石電商・Digi-Key Japan・モノタロウ・マルツ など) で買う前提で、購入リンク付きのリストを作る
 - 部品のグレード (信号の通り道にオーディオ用の部品を使うか、汎用にするか) を最初に選び、費用は送料込みの合計で比べる
 - 回路図を作る前に、パネル配置 (ボタン・コネクター・LED の位置) と基板の構成 (電源部を音声と同じ基板にするか、別基板にするか) を決める。配置は図で確かめられ、あとで変えても筐体と基板を作り直すだけで済む
+- 基板の配線はオーディオ向けの自動配線ツール [kicad-audio-router](https://github.com/AsteroidApp-hub/kicad-audio-router) で行う。アナログの線をデジタルから離し、差動ペアを並べ、GND パッドごとにビアを打ち、配線の品質レポートを設計の根拠に載せる
 - 2ch P48 ファンタム電源の実例で一通り動いた雛形スクリプト一式 (`assets/template/`) を同梱
 
 A Claude Code skill for end-to-end small hardware projects: KiCad schematic and PCB generated from a Python part list,
@@ -68,7 +69,7 @@ Documentation and comments are in Japanese.
 ### 導入手順
 
 設計に必要なソフト (KiCad・ngspice・Python・uv・Git)、VS Code と Claude Code 拡張機能、この Skill、
-CAD 用の Python 環境を、コマンド 1 行でまとめて入れるスクリプトを用意しています。すでに入っているものは飛ばすので、何度実行しても大丈夫です。
+CAD 用の Python 環境、基板の自動配線ツール (kicad-audio-router) を、コマンド 1 行でまとめて入れるスクリプトを用意しています。すでに入っているものは飛ばすので、何度実行しても大丈夫です。
 全部で 10〜20 分ほどかかります (通信速度によります)。
 
 #### macOS
@@ -192,6 +193,7 @@ VS Code を開き直し、Claude のパネルで次のように話しかけま�
 | ngspice | シミュレーション |
 | Python 3 | ジェネレーター (回路図・購入リスト・資料は標準ライブラリのみ) |
 | Python 3.12 の仮想環境 (`build123d ezdxf matplotlib numpy pyvista`、uv で作る) | 筐体の 3D・図面、シミュレーションのグラフ、製作者向け資料 |
+| [kicad-audio-router](https://github.com/AsteroidApp-hub/kicad-audio-router) (KiCad 同梱の Python に pip で入れる) | 基板の自動配線と配線の品質レポート。使えない環境では雛形の簡易ルーター (`ROUTER=builtin`) で配線する |
 
 KiCad が標準の場所に無い場合は、環境変数 `KICAD_SHARE` / `KICAD_PYTHON` で指定できます (`python tools/kicad_env.py` で検出結果を表示)。
 ngspice は `NGSPICE`、Python は `PYTHON` でも指定できます。

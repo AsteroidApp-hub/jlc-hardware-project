@@ -6,7 +6,8 @@
 #   (「curl ... | bash」の形だと Homebrew の導入時にパスワードを入力できないので、この形で実行する)
 #
 # 入るもの: Homebrew (無ければ) / KiCad / ngspice / uv / Git / VS Code + Claude Code 拡張機能 /
-#           この Skill (~/.claude/skills/jlc-hardware-project) / CAD 用の Python 仮想環境 (~/.jlc-hardware-project/venv)
+#           この Skill (~/.claude/skills/jlc-hardware-project) / CAD 用の Python 仮想環境 (~/.jlc-hardware-project/venv) /
+#           基板の自動配線 kicad-audio-router (KiCad 同梱の Python に入れる)
 # すでに入っているものは飛ばす。何度実行してもよい。
 #
 # 環境変数:
@@ -18,6 +19,7 @@ REPO="https://github.com/AsteroidApp-hub/jlc-hardware-project.git"
 SKILL_DIR="$HOME/.claude/skills/jlc-hardware-project"
 VENV="${JLC_VENV:-$HOME/.jlc-hardware-project/venv}"
 PKGS="build123d ezdxf matplotlib numpy pyvista"
+KAR="git+https://github.com/AsteroidApp-hub/kicad-audio-router"
 
 say()  { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 run()  { echo "+ $*"; [ "${DRY_RUN:-0}" = 1 ] || "$@"; }
@@ -25,7 +27,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 [ "$(uname)" = "Darwin" ] || { echo "macOS 用のスクリプトです"; exit 1; }
 
-say "1/7 Homebrew (ソフトをまとめて入れる道具)"
+say "1/8 Homebrew (ソフトをまとめて入れる道具)"
 if ! have brew; then
   for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)"; done
 fi
@@ -42,7 +44,7 @@ else
   echo "入っています: $(brew --version | head -1)"
 fi
 
-say "2/7 KiCad (回路図・基板)"
+say "2/8 KiCad (回路図・基板)"
 if [ -d "/Applications/KiCad/KiCad.app" ]; then echo "入っています"; else run brew install --cask kicad; fi
 if ! have kicad-cli && [ -x /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli ]; then
   # Homebrew 以外で入れた KiCad: kicad-cli を使えるようにする
@@ -51,12 +53,12 @@ if ! have kicad-cli && [ -x /Applications/KiCad/KiCad.app/Contents/MacOS/kicad-c
   export PATH="/Applications/KiCad/KiCad.app/Contents/MacOS:$PATH"
 fi
 
-say "3/7 ngspice (回路シミュレーション)・uv (Python の環境づくり)・Git"
+say "3/8 ngspice (回路シミュレーション)・uv (Python の環境づくり)・Git"
 for f in ngspice uv git; do
   if have "$f"; then echo "入っています: $f"; else run brew install "$f"; fi
 done
 
-say "4/7 VS Code と Claude Code 拡張機能"
+say "4/8 VS Code と Claude Code 拡張機能"
 CODE="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
 if [ "${SKIP_VSCODE:-0}" = 1 ]; then
   echo "飛ばします (SKIP_VSCODE=1)"
@@ -67,7 +69,7 @@ else
   fi
 fi
 
-say "5/7 この Skill"
+say "5/8 この Skill"
 if [ -d "$SKILL_DIR/.git" ]; then
   run git -C "$SKILL_DIR" pull --ff-only
 elif [ -e "$SKILL_DIR" ]; then
@@ -77,14 +79,22 @@ else
   run git clone "$REPO" "$SKILL_DIR"
 fi
 
-say "6/7 CAD 用の Python 仮想環境 (筐体の 3D・図・グラフ用。数分かかります)"
+say "6/8 CAD 用の Python 仮想環境 (筐体の 3D・図・グラフ用。数分かかります)"
 if [ ! -x "$VENV/bin/python" ]; then
   run mkdir -p "$(dirname "$VENV")"
   run uv venv -p 3.12 "$VENV"
 fi
 run uv pip install --python "$VENV/bin/python" $PKGS
 
-say "7/7 確認"
+say "7/8 kicad-audio-router (基板の自動配線。KiCad 同梱の Python に入れる)"
+KPY="/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3"
+if [ -x "$KPY" ] || [ "${DRY_RUN:-0}" = 1 ]; then
+  run "$KPY" -m pip install --upgrade --disable-pip-version-check -q "$KAR"
+else
+  echo "KiCad の Python が見つかりません (KiCad を入れてからもう一度実行してください)"
+fi
+
+say "8/8 確認"
 if [ "${DRY_RUN:-0}" = 1 ]; then
   echo "+ python3 $SKILL_DIR/setup/check.py"
 else

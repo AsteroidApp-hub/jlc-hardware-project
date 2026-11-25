@@ -35,14 +35,46 @@ sh tools/render_sch.sh <作業dir>  # ネットリスト照合 + ERC (件数と�
   R(270): (−fy,fx)。
 - `--check` でコートヤード (部品の占有範囲) の重なりと基板外へのはみ出しを先に確認してから配線する。0603 の間隔は約 3.1mm、
   φ10 電解は直径 10.5mm、DO-41 は約 12.9mm の長さ。
-- 自作の格子ルーター (A*) で配線。F.Cu / B.Cu、内層 2枚は GND ベタ。細線ネット (`NARROW`) と先に配線するネット (`ORDER_FIRST`) を設定する。
-  SMD の GND パッドはビアで内層へ落とす。配線品質 (直角が多い) は実用上問題ないが、電流ループの短さは配置で作る。
 - フットプリントのフィールド (MPN, LCSC など) も設定しておくと、DRC の回路図照合が 0 件になる。
 - シルク: 値は消し、JLC 実装部品の記号は Fab 層へ移し、手はんだ部品の記号だけ印刷すると見やすい。
+- 内層 2 枚は GND ベタにし、層の種類を「電源」(`LT_POWER`) にする。配線は F.Cu と B.Cu で行う。
+
+### 配線: kicad-audio-router (kar)
+
+`gen_pcb.py` は配置・シルク・GND ベタまでを作り、配線を [kicad-audio-router](https://github.com/AsteroidApp-hub/kicad-audio-router)
+の `kar auto` に任せる。kar は配線、GND パッドごとのビア、KiCad の DRC、配線の品質レポートをまとめて行う。
+kar はネットをアナログ・デジタル・電源・GND に分けて、次のように配線する。
+
+- アナログの線をデジタルの銅箔から離す (クロックほど強く)
+- 差動ペア (HOT / COLD など) を並べて引く
+- SMD の GND パッドに 1 つずつビアを打つ
+- 電源の線は太く引き、細いピンの近くだけ細くする
+
+1. `kar classify` でネットの分け方を確かめる。合わないネットはプロジェクト直下の `kar_rules.json` で直す
+   (書き方は kar の `examples/rules.example.json`)。`gen_pcb.py` はこのファイルがあれば読む。
+2. `gen_pcb.py` を実行する。終わると、点数・未配線・DRC が 1 行に出る。未配線か配線の DRC の問題が残ると、エラーで止まる。
+   配置で決まる指摘 (許したコートヤードの重なりなど) では止まらない。
+3. `kicad/.route/kar_out/` の品質レポート (`<PROJECT>_quality.md`) と配線図 (`配線図.svg`) を見る。
+   見る点は、アナログとデジタルが 1mm 以内で並んでいないこと、差動ペアが並んでいること、GND パッドがビアから 3mm 以内にあること、
+   電源の線が細くなっていないこと。品質レポートは `design_notes.py` が設計の根拠の資料に写す。
+4. 直したい配線は KiCad で手で直し、残りは `--rip-kar` で引き直せる (kar の README の「Fixing things by hand」)。
+   その場合は `gen_pcb.py` を再実行しない (配置からやり直して手直しが消える)。
+
+kar は次のコマンドで入れて、使えるかを確かめる。KiCad を入れ直したときや更新したときも、入れ直す。
 
 ```sh
+<KiCad python> -m pip install git+https://github.com/AsteroidApp-hub/kicad-audio-router
+<KiCad python> -m kar doctor --demo      # すべて ok なら使える
+```
+
+kar が使えない環境では、`ROUTER=builtin` で雛形の簡易の格子ルーター (A*) を使う。細線ネット (`NARROW`) と
+先に配線するネット (`ORDER_FIRST`) を設定する。配線は直角が多く、アナログとデジタルの離隔や差動ペアは考えない。
+
+```sh
+<KiCad python> -m kar classify kicad/<PROJECT>.kicad_pcb   # ネットの分け方 (配置だけの基板でも見られる)
 <KiCad python> tools/gen_pcb.py --check      # 配置だけ確認
-<KiCad python> tools/gen_pcb.py              # 配置 + 配線
+<KiCad python> tools/gen_pcb.py              # 配置 + 配線 (kar)
+ROUTER=builtin <KiCad python> tools/gen_pcb.py   # kar が使えないとき
 kicad-cli pcb drc --severity-all --schematic-parity --format json -o drc.json kicad/<PROJECT>.kicad_pcb
 python3 tools/drc_summary.py drc.json
 ```

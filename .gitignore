@@ -22,3 +22,6 @@ assets/template/設計根拠/
 # メーカーの 3D モデルは再配布しない
 *.stp
 *.step
+assets/template/kicad/.route/
+# yomiyasu (日本語の推敲) の記録
+.yomiyasu/

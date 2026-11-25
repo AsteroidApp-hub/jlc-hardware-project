@@ -85,14 +85,14 @@ description: >-
 
 | 工程 | やること | 読むもの |
 |---|---|---|
-| 0. 準備 | 雛形をプロジェクトにコピー、環境確認 (KiCad 9/10, ngspice, uv) | 下の「雛形の使い方」 |
+| 0. 準備 | 雛形をプロジェクトにコピー、環境確認 (KiCad 9/10, ngspice, uv, kicad-audio-router) | 下の「雛形の使い方」 |
 | 1. 要件と構成 | 上の「最初にユーザーに確認すること」(部品のグレード、電源部を同じ基板にするか別基板にするか を含む) | `references/layout-first.md` |
 | 2. 外観とパネル配置 (仮決め) | `tools/panel_layout.py` に外形・パネル部品の位置・印刷を書く → 配置図 (前面・後面) を見せて**ユーザーに確かめてもらう** | `references/layout-first.md` |
 | 3. 部品選定 | JLC 基本部品の確認、国内通販の在庫・価格・リンク、データシートで寸法・ピン確認 | `references/parts-sourcing.md` |
 | 4. 回路図 (必須) | `PARTS` を書く → KiCad 回路図 (1 枚) を生成 → ネットリスト照合 → ERC → PDF/PNG で見た目確認 | `references/kicad-generation.md` |
 | 5. シミュレーション (必須) | PARTS から ngspice ネットリスト生成、起動・リップル・周波数特性・電源ON/OFF、定格の確認 | `references/simulation.md` |
 | 6. 筐体 | `panel_layout.py` の値で JLCCNC 板金 (U+U の 2部品)、パネル穴、圧入ナット、シルク、STEP | `references/enclosure-jlccnc.md` |
-| 7. 基板 | 筐体の寸法を受けて配置 → 配線 → DRC → 3D 画像 (必須) → 3D で筐体との干渉チェック | `references/kicad-generation.md` |
+| 7. 基板 | 筐体の寸法を受けて配置 → 配線 (kicad-audio-router) → DRC・配線の品質レポート → 3D 画像 (必須) → 3D で筐体との干渉チェック | `references/kicad-generation.md` |
 | 8. 発注データ | ガーバー・ドリル・BOM・CPL (向き補正)、JLCCNC 一式、購入リスト、原寸チェック、設計の根拠 | `references/fabrication.md` |
 | 9. 資料・引き継ぎ | HTML 資料、入口ページ、製作者向け資料 (組立図・寸法・検査)、zip | `references/documents.md` |
 
@@ -118,7 +118,7 @@ python3 <プロジェクト>/tools/kicad_env.py        # KiCad の場所の確�
 
 最初に `tools/project.py` の `PROJECT` (ファイル名) と `TITLE` (資料のタイトル) を書き換える。全スクリプトがここを読む。
 
-環境の確認は `python3 <この Skill>/setup/check.py` (KiCad・ngspice・Python・uv・仮想環境・Git を一覧で OK/NG 表示)。
+環境の確認は `python3 <この Skill>/setup/check.py` (KiCad・ngspice・kicad-audio-router・Python・uv・仮想環境・Git を一覧で OK/NG 表示)。
 足りなければ `setup/install_mac.sh` / `setup/install_windows.ps1` でまとめて入れられる (README に手順)。
 仮想環境の既定の場所は `~/.jlc-hardware-project/venv` (環境変数 `JLC_VENV` で変更可)。
 
@@ -129,6 +129,9 @@ uv venv -p 3.12 ~/.jlc-hardware-project/venv && uv pip install --python ~/.jlc-h
 ```
 
 基板生成 (`gen_pcb.py`, `dump_pcb.py`) は KiCad 同梱の Python (pcbnew が使えるもの) で実行する。
+配線には同じ作者の自動配線ツール [kicad-audio-router](https://github.com/AsteroidApp-hub/kicad-audio-router) (kar) を使う。
+KiCad 同梱の Python に入れておく (`<KiCad python> -m pip install git+https://github.com/AsteroidApp-hub/kicad-audio-router`)。
+使えない環境では `ROUTER=builtin` で雛形の簡易ルーターを使う (`references/kicad-generation.md`)。
 
 ## 同梱スクリプト
 
@@ -143,6 +146,9 @@ uv venv -p 3.12 ~/.jlc-hardware-project/venv && uv pip install --python ~/.jlc-h
 - 回路図: KiCad の 1 枚の回路図、ネットリスト照合 0 件、ERC 0 件、PDF/PNG を目で確認
 - シミュレーション: 必須の試験をすべて実行し、定格超えや発振が無い (あれば直した) ことを結果ページに書いた
 - 基板: 未接続・短絡・クリアランス 0 件、回路図照合 0 件 (シルクの軽微な指摘と、理由を確認したコートヤード重なりは可)
+- 配線の品質 (kar の品質レポート): アナログの線がデジタルの銅箔の 1mm 以内を走る長さが 0 に近い、差動ペアが並んでいる
+  (ピンの位置で決まる部分を除く)、GND のベタがあるネットの GND パッドがすべてビアから 3mm 以内、電源の線が細くなっていない。
+  外れたものは配置を見直すか手で直し、理由を設計の根拠に書く
 - 購入リスト: 全品目に購入リンク (開いて確認済み)、店ごとの送料と合計、`check_buy_links()` が通る
 - 基板 3D: `基板3D.png` と `基板3D_斜め.png` を書き出し、入口ページ・製作者向け資料に載っている
 - 筐体: 基板・コネクタとの干渉 0、天板までの余裕を実部品の高さで確認

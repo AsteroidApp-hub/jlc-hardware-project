@@ -22,9 +22,9 @@
 | `tools/sim/run_all.py` | 試験 T1〜T6 とグラフ・結果 | 試験の中身 (測るノード名・期待値) | `run` / `note` / `write_md` |
 | `tools/enclosure/gen_enclosure.py` | 板金筐体 → STEP・図面・DXF・制約 JSON | 筐体の作り (立ち上がり・ねじ・圧入ナット・基板の取付穴)、メーカー STEP の置き方。外形とパネル部品の位置は `panel_layout.py` から読む | 曲げ・穴・展開図・図面・プレビューの関数 |
 | `tools/enclosure/fit_check.py` | 基板 STEP を筐体に入れて干渉確認 | なし (XLR の配置関数は gen_enclosure) | 全部 |
-| `tools/gen_pcb.py` | 配置 + 配線 → kicad_pcb | `POS` (配置)、`NARROW` / `ORDER_*`、シルク文字、許容するコートヤード重なり | 格子ルーター、配置チェック、ゾーン |
+| `tools/gen_pcb.py` | 配置 → 配線 (kicad-audio-router の `kar auto`) → kicad_pcb。品質レポートは `kicad/.route/kar_out/` | `POS` (配置)、シルク文字、許容するコートヤード重なり、ネットの分類の上書き (プロジェクト直下の `kar_rules.json`、任意)。`NARROW` / `ORDER_*` は `ROUTER=builtin` のときだけ | 配置チェック、ゾーン、kar の呼び出し、予備の格子ルーター |
 | `tools/print_check.py` | 原寸チェック用の基板図 (A4・1:1・50mm 目盛り) と手順書 | `CHECK` (実物で確かめる部品と見る点)、基板以外の確認事項 | PDF 出力・目盛り・手順の枠組み |
-| `tools/design_notes.py` | 設計の根拠 (計算式・計算値・シミュレーション結果の対比、定格の余裕) | 各節の中身 (回路ごとに計算式を書き直す) | `val()` (PARTS の値を数値に)・`sim()` (結果.md から値を引く)・表の書き方 |
+| `tools/design_notes.py` | 設計の根拠 (計算式・計算値・シミュレーション結果の対比、定格の余裕、kar の配線の品質) | 各節の中身 (回路ごとに計算式を書き直す) | `val()` (PARTS の値を数値に)・`sim()` (結果.md から値を引く)・表の書き方 |
 | `tools/drc_summary.py` | DRC 結果の要約 | なし | 全部 |
 | `tools/render_images.sh` | 回路図.png・基板3D.png・基板3D_斜め.png・基板レイアウト.png (必須の画像) | 斜めの角度 (`--rotate`) くらい | 全部 |
 | `tools/export_fab.py` | 発注データ一式 | `ROT_CORR`、コピーする筐体ファイル名 | 全部 |
@@ -39,7 +39,7 @@
 python3 tools/panel_layout.py                                      # パネル配置図 (最初に。ユーザーに確かめてもらう)
 python3 tools/gen_schematic.py && sh tools/render_sch.sh <work>    # 回路図 + 照合 + ERC (problems 0 / ERC 0 件が目標)
 <venv>/bin/python tools/enclosure/gen_enclosure.py                 # 筐体 (先に) → pcb_constraints.json
-<KiCad python> tools/gen_pcb.py --check && <KiCad python> tools/gen_pcb.py   # 基板
+<KiCad python> tools/gen_pcb.py --check && <KiCad python> tools/gen_pcb.py   # 基板 (配線は kar。kar が無ければ ROUTER=builtin)
 kicad-cli pcb drc --severity-all --schematic-parity --format json -o drc.json kicad/<P>.kicad_pcb && python3 tools/drc_summary.py drc.json
 <venv>/bin/python tools/sim/run_all.py                             # シミュレーション
 python3 tools/export_fab.py                                        # 発注データ (最初に render_images.sh で画像も更新)

@@ -5,7 +5,8 @@
 #
 # 入るもの: Git / KiCad / Python 3.12 / uv / VS Code + Claude Code 拡張機能 (winget で) /
 #           ngspice (公式サイトの Windows 版) / この Skill (%USERPROFILE%\.claude\skills\jlc-hardware-project) /
-#           CAD 用の Python 仮想環境 (%USERPROFILE%\.jlc-hardware-project\venv)
+#           CAD 用の Python 仮想環境 (%USERPROFILE%\.jlc-hardware-project\venv) /
+#           基板の自動配線 kicad-audio-router (KiCad 同梱の Python に入れる)
 # すでに入っているものは飛ばす。何度実行してもよい。途中で「このアプリがデバイスに変更を加えることを許可しますか」と出たら「はい」。
 #
 # 環境変数 (実行前に $env:SKIP_VSCODE = "1" のように設定):
@@ -56,21 +57,21 @@ function Install-JlcHardware {
         return
     }
 
-    Say "1/8 Git (Skill の取得と、Claude Code がコマンドを動かすのに使う)"
+    Say "1/9 Git (Skill の取得と、Claude Code がコマンドを動かすのに使う)"
     Winget-Install "Git.Git" "Git"
-    Say "2/8 KiCad (回路図・基板)"
+    Say "2/9 KiCad (回路図・基板)"
     Winget-Install "KiCad.KiCad" "KiCad"
-    Say "3/8 Python 3.12 と uv (Python の環境づくり)"
+    Say "3/9 Python 3.12 と uv (Python の環境づくり)"
     # 既定のインストールでは python コマンドが PATH に入らないので、PATH に追加するオプションを付ける
     Winget-Install "Python.Python.3.12" "Python 3.12" "/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1"
     Winget-Install "astral-sh.uv" "uv"
     Refresh-Path
 
-    Say "4/8 KiCad のコマンド (kicad-cli) を使えるようにする"
+    Say "4/9 KiCad のコマンド (kicad-cli) を使えるようにする"
     $cli = Get-ChildItem "C:\Program Files\KiCad\*\bin\kicad-cli.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
     if ($cli) { Add-UserPath $cli.DirectoryName } else { Write-Host "kicad-cli.exe が見つかりません (KiCad のインストール後にもう一度実行してください)" -ForegroundColor Yellow }
 
-    Say "5/8 ngspice (回路シミュレーション)"
+    Say "5/9 ngspice (回路シミュレーション)"
     $ngBin = Get-ChildItem $NgDir -Recurse -Filter "ngspice_con.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($ngBin) {
         Write-Host "入っています: $($ngBin.FullName)"
@@ -92,7 +93,7 @@ function Install-JlcHardware {
     }
     if ($ngBin) { Add-UserPath $ngBin.DirectoryName } elseif (-not $Dry) { Write-Host "ngspice を入れられませんでした。https://ngspice.sourceforge.io/download.html から手動で入れてください" -ForegroundColor Yellow }
 
-    Say "6/8 VS Code と Claude Code 拡張機能"
+    Say "6/9 VS Code と Claude Code 拡張機能"
     if ($env:SKIP_VSCODE -eq "1") {
         Write-Host "飛ばします (SKIP_VSCODE=1)"
     } else {
@@ -105,7 +106,7 @@ function Install-JlcHardware {
         else { Write-Host "VS Code のコマンドが見つかりません。VS Code の拡張機能から「Claude Code」を入れてください" -ForegroundColor Yellow }
     }
 
-    Say "7/8 この Skill"
+    Say "7/9 この Skill"
     $git = (Get-Command git -ErrorAction SilentlyContinue).Source
     if (-not $git) { $git = "C:\Program Files\Git\cmd\git.exe" }
     if (Test-Path (Join-Path $SkillDir ".git")) {
@@ -117,7 +118,7 @@ function Install-JlcHardware {
         Run $git @("clone", $Repo, $SkillDir)
     }
 
-    Say "8/8 CAD 用の Python 仮想環境 (筐体の 3D・図・グラフ用。数分かかります)"
+    Say "8/9 CAD 用の Python 仮想環境 (筐体の 3D・図・グラフ用。数分かかります)"
     $vpy = Join-Path $Venv "Scripts\python.exe"
     $uv = (Get-Command uv -ErrorAction SilentlyContinue).Source
     if (-not $uv) {
@@ -130,6 +131,15 @@ function Install-JlcHardware {
         Run $uv @("venv", "-p", "3.12", $Venv)
     }
     Run $uv @("pip", "install", "--python", $vpy, "build123d", "ezdxf", "matplotlib", "numpy", "pyvista")
+
+    Say "9/9 kicad-audio-router (基板の自動配線。KiCad 同梱の Python に入れる)"
+    $kpy = Get-ChildItem "C:\Program Files\KiCad\*\bin\python.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
+    $kar = "git+https://github.com/AsteroidApp-hub/kicad-audio-router"
+    if ($kpy) {
+        Run $kpy.FullName @("-m", "pip", "install", "--upgrade", "--disable-pip-version-check", "-q", $kar)
+        # Program Files に書けないときは、ユーザーの場所に入れる
+        if (-not $Dry -and $LASTEXITCODE -ne 0) { Run $kpy.FullName @("-m", "pip", "install", "--user", "--upgrade", "--disable-pip-version-check", "-q", $kar) }
+    } else { Write-Host "KiCad の python.exe が見つかりません (KiCad のインストール後にもう一度実行してください)" -ForegroundColor Yellow }
 
     Say "確認"
     # python が Microsoft Store の案内 (WindowsApps) を指すことがあるので、py ランチャーを優先する

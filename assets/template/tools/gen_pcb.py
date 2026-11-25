@@ -5,6 +5,11 @@ KiCad同梱のPythonで実行する:
   $(python3 tools/kicad_env.py | sed -n 's/KICAD_PYTHON = //p') tools/gen_pcb.py   # KiCad 同梱 Python
 gen_schematic.py の PARTS(回路定義) を読み、kicad/P48_2CH.kicad_pcb を生成する。
 4層: F.Cu=部品+配線 / In1.Cu=GND / In2.Cu=GND / B.Cu=配線
+配線は kicad-audio-router (kar) の `kar auto` で行う (配線 → GND のビア → DRC → 品質レポート)。
+  kar の入れ方: <KiCad python> -m pip install git+https://github.com/AsteroidApp-hub/kicad-audio-router
+  出力: kicad/.route/kar_out/ (品質レポート <PROJECT>_quality.md、DRC、配線ログ、配線図.svg)
+  ネットの分類を直すときは、プロジェクト直下に kar_rules.json を置く (kar classify で確かめる)
+  kar が使えない環境では ROUTER=builtin で、下の簡易の格子ルーター (A*) で配線する。
 注意: 再実行すると .kicad_pcb を上書きする。
 """
 import heapq, json, math, os, sys
@@ -18,6 +23,8 @@ SS = sch.SS
 OUT = os.path.join(sch.OUT, sch.PROJECT + ".kicad_pcb")
 LIBDIR = {"Custom": os.path.join(sch.OUT, "Custom.pretty")}
 OX, OY = 100.0, 80.0         # KiCadシート上の原点オフセット
+ROUTER = os.environ.get("ROUTER", "kar")   # "kar" (kicad-audio-router) / "builtin" (下の簡易ルーター)
+KAR_URL = "git+https://github.com/AsteroidApp-hub/kicad-audio-router"
 
 # ---- 筐体から基板寸法を受け取る (筐体/pcb_constraints.json)
 #  基板座標: bx = 筐体x − 基板左端, by = 基板前端(筐体y) から 後ろ向きに測った値を反転 → 画面の下 = 前面パネル側
@@ -144,6 +151,7 @@ POS.update({
 for _i, (hx, hy) in enumerate(HOLES):
     POS["H%d" % (_i + 1)] = (hx, hy, 0)
 
+# ---- ここから下の NARROW / ORDER_* と格子ルーターは ROUTER=builtin のときだけ使う (kar はネットの種類から決める)
 # 配線幅クラス: 細線(0.2mm)にするネット。それ以外は0.4mm
 NARROW = {"FB", "COMP", "COMP_RC", "RC", "VREF", "GATE", "GATE_Q", "CS_F", "LED_A", "Q_B1", "Q_B2", "VBASE", "SNUB",
           "PH_FEED", "PH_OFF"}
@@ -280,6 +288,8 @@ def astar(net, sources, targets, m, via_goal=False, allow_via=True, limit=600000
 def main():
     board = pcbnew.BOARD()
     board.SetCopperLayerCount(4)
+    for layer in (pcbnew.In1_Cu, pcbnew.In2_Cu):    # 内層は GND ベタ専用 (kar はここに配線しない)
+        board.SetLayerType(layer, pcbnew.LT_POWER)
     bds = board.GetDesignSettings()
     try:
         nc = bds.m_NetSettings.GetDefaultNetclass()
@@ -395,185 +405,187 @@ def main():
         pcbnew.SaveBoard(OUT, board)      # 配置だけの基板 (確認用)
         return
 
-    # ------------------------------------------------ grid init
-    for m in (0, 1):
-        for l in (0, 1):
-            a = own[m][l]
-            for j in range(NY):
-                y = GY0 + j * G
-                for i in range(NX):
-                    x = GX0 + i * G
-                    inside = 0.6 <= x <= W - 0.6 and 0.6 <= y <= D - 0.6
-                    if not inside:
-                        a[j * NX + i] = -1
+    stats, failed = dict(tracks=0, vias=0), []
+    if ROUTER == "builtin":
+        # ------------------------------------------------ grid init
+        for m in (0, 1):
+            for l in (0, 1):
+                a = own[m][l]
+                for j in range(NY):
+                    y = GY0 + j * G
+                    for i in range(NX):
+                        x = GX0 + i * G
+                        inside = 0.6 <= x <= W - 0.6 and 0.6 <= y <= D - 0.6
+                        if not inside:
+                            a[j * NX + i] = -1
 
-    pads = {}      # net -> list of dict(cells={layer:[(i,j)]}, c=(x,y), smd, ref)
-    uniq = [2000]
-    for ref, fp in fps.items():
-        for pad in fp.Pads():
-            bb = pad.GetBoundingBox()
-            bx1, by1 = pcbnew.ToMM(bb.GetLeft()) - OX, pcbnew.ToMM(bb.GetTop()) - OY
-            bx2, by2 = pcbnew.ToMM(bb.GetRight()) - OX, pcbnew.ToMM(bb.GetBottom()) - OY
-            attr = pad.GetAttribute()
-            if attr == pcbnew.PAD_ATTRIB_NPTH:
-                for l in (0, 1):
-                    mark(l, bx1 - 0.25, by1 - 0.25, bx2 + 0.25, by2 + 0.25, -1)
-                continue
-            name = pad.GetNetname().lstrip("/")
-            if name:
-                nid = netid[name]
-            else:
-                uniq[0] += 1
-                nid = uniq[0]
-            tht = attr == pcbnew.PAD_ATTRIB_PTH
-            layers = (0, 1) if tht else (0,)
-            for l in layers:
-                mark(l, bx1, by1, bx2, by2, nid)
-            for (i, j) in cells_in(bx1 - 0.35, by1 - 0.35, bx2 + 0.35, by2 + 0.35):
-                keepout[j * NX + i] = 1
-            if not name:
-                continue
-            cx, cy = (bx1 + bx2) / 2, (by1 + by2) / 2
-            try:
-                shape = pad.GetShape(pcbnew.F_Cu)
-            except TypeError:
-                shape = pad.GetShape()
-            k = 0.35 if shape in (pcbnew.PAD_SHAPE_CIRCLE, pcbnew.PAD_SHAPE_OVAL) else None
-            if k:
-                hx, hy = (bx2 - bx1) * k, (by2 - by1) * k
-            else:
-                hx, hy = max(0.0, (bx2 - bx1) / 2 - 0.12), max(0.0, (by2 - by1) / 2 - 0.12)
-            cs = cells_in(cx - hx, cy - hy, cx + hx, cy + hy)
-            stub = None
-            if not cs:
-                i, j = int(round(gi(cx))), int(round(gj(cy)))
-                cs = [(i, j)]
-                stub = (cx, cy)
-            pads.setdefault(name, []).append(dict(cells={l: cs for l in layers}, c=(cx, cy), smd=not tht, ref=ref,
-                                                  num=pad.GetNumber(), stub=stub, box=(bx1, by1, bx2, by2)))
-
-    # ------------------------------------------------ emit helpers
-    LAYER = (pcbnew.F_Cu, pcbnew.B_Cu)
-    stats = dict(tracks=0, vias=0)
-
-    def add_track(net, l, xa, ya, xb, yb, w):
-        t = pcbnew.PCB_TRACK(board)
-        t.SetStart(V(xa, ya)); t.SetEnd(V(xb, yb)); t.SetWidth(mm(w)); t.SetLayer(LAYER[l]); t.SetNet(nets[net])
-        board.Add(t)
-        stats["tracks"] += 1
-        mark(l, min(xa, xb) - w / 2, min(ya, yb) - w / 2, max(xa, xb) + w / 2, max(ya, yb) + w / 2, netid[net])
-
-    def add_via(net, x, y):
-        v = pcbnew.PCB_VIA(board)
-        v.SetPosition(V(x, y))
-        v.SetDrill(mm(VIA_DRILL))
-        try:
-            v.SetWidth(pcbnew.F_Cu, mm(VIA_D))
-        except TypeError:
-            v.SetWidth(mm(VIA_D))
-        v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-        v.SetNet(nets[net])
-        board.Add(v)
-        stats["vias"] += 1
-        for l in (0, 1):
-            mark(l, x - VIA_D / 2, y - VIA_D / 2, x + VIA_D / 2, y + VIA_D / 2, netid[net])
-        for (i, j) in cells_in(x - 0.6, y - 0.6, x + 0.6, y + 0.6):
-            keepout[j * NX + i] = 1
-
-    def emit(net, path, w, end_via=False):
-        pt = lambda c: (GX0 + c[1] * G, GY0 + c[2] * G)
-        k = 0
-        while k < len(path) - 1:
-            a = path[k]
-            b = path[k + 1]
-            if a[0] != b[0]:
-                add_via(net, *pt(a))
-                k += 1
-                continue
-            d = (b[1] - a[1], b[2] - a[2])
-            e = k + 1
-            while e + 1 < len(path) and path[e + 1][0] == a[0] and \
-                    (path[e + 1][1] - path[e][1], path[e + 1][2] - path[e][2]) == d:
-                e += 1
-            add_track(net, a[0], *pt(a), *pt(path[e]), w)
-            k = e
-        if end_via:
-            add_via(net, *pt(path[-1]))
-
-    def stub(net, pad, cell, w):
-        if pad["stub"]:
-            x, y = GX0 + cell[1] * G, GY0 + cell[2] * G
-            if abs(x - pad["stub"][0]) + abs(y - pad["stub"][1]) > 1e-4:
-                add_track(net, cell[0], pad["stub"][0], pad["stub"][1], x, y, min(w, 0.2))
-
-    failed = []
-
-    def route_net(net):
-        nid = netid[net]
-        pl = pads.get(net, [])
-        if len(pl) < 2:
-            return
-        m0 = 0 if net in NARROW else 1
-        done = [pl[0]]
-        todo = pl[1:]
-        tree = set((l, i, j) for l, cs in pl[0]["cells"].items() for (i, j) in cs)
-        while todo:
-            todo.sort(key=lambda p: min(abs(p["c"][0] - q["c"][0]) + abs(p["c"][1] - q["c"][1]) for q in done))
-            p = todo.pop(0)
-            src = [(l, i, j) for l, cs in p["cells"].items() for (i, j) in cs]
-            path, mused = None, m0
-            for m in ([1, 0] if m0 == 1 else [0]):
-                path = astar(nid, src, tree, m)
-                mused = m
-                if path:
-                    break
-            if not path:
-                failed.append("%s: %s.%s" % (net, p["ref"], p["num"]))
-                continue
-            w = TW[mused]
-            emit(net, path, w)
-            stub(net, p, path[0], w)
-            for q in done:   # target pad stub if the path ended on a stub-type pad cell
-                if q["stub"] and any(path[-1][1:] == c for cs in q["cells"].values() for c in cs):
-                    stub(net, q, path[-1], w)
-            for c in path:
-                tree.add(c)
-            for k in range(len(path) - 1):
-                if path[k][0] != path[k + 1][0]:
-                    tree.add((0,) + path[k][1:]); tree.add((1,) + path[k][1:])
-            tree.update(src)
-            done.append(p)
-
-    def route_gnd():
-        nid = netid["GND"]
-        for p in pads.get("GND", []):
-            if not p["smd"]:
-                continue   # スルーホールは内層GNDプレーンに直接つながる
-            if p["ref"] == "U1":   # IC: 放熱パッドにビア2個、GNDピンは放熱パッドへ直結
-                ep = [q for q in pads["GND"] if q["ref"] == "U1" and q["num"] == "13"][0]
-                ex = round(ep["c"][0] / G) * G
-                if p["num"] == "13":
-                    for dy in (-0.75, 0.75):
-                        add_via("GND", ex, round((ep["c"][1] + dy) / G) * G)
+        pads = {}      # net -> list of dict(cells={layer:[(i,j)]}, c=(x,y), smd, ref)
+        uniq = [2000]
+        for ref, fp in fps.items():
+            for pad in fp.Pads():
+                bb = pad.GetBoundingBox()
+                bx1, by1 = pcbnew.ToMM(bb.GetLeft()) - OX, pcbnew.ToMM(bb.GetTop()) - OY
+                bx2, by2 = pcbnew.ToMM(bb.GetRight()) - OX, pcbnew.ToMM(bb.GetBottom()) - OY
+                attr = pad.GetAttribute()
+                if attr == pcbnew.PAD_ATTRIB_NPTH:
+                    for l in (0, 1):
+                        mark(l, bx1 - 0.25, by1 - 0.25, bx2 + 0.25, by2 + 0.25, -1)
+                    continue
+                name = pad.GetNetname().lstrip("/")
+                if name:
+                    nid = netid[name]
                 else:
-                    add_track("GND", 0, p["c"][0], p["c"][1], ex, p["c"][1], 0.2)
-                continue
-            src = [(0, i, j) for (i, j) in p["cells"][0]]
-            path = astar(nid, src, set(), 0, via_goal=True)
-            if not path:
-                failed.append("GND via: %s.%s" % (p["ref"], p["num"]))
-                continue
-            emit("GND", path, 0.3 if len(path) < 3 else 0.25, end_via=True)
-            stub("GND", p, path[0], 0.2)
+                    uniq[0] += 1
+                    nid = uniq[0]
+                tht = attr == pcbnew.PAD_ATTRIB_PTH
+                layers = (0, 1) if tht else (0,)
+                for l in layers:
+                    mark(l, bx1, by1, bx2, by2, nid)
+                for (i, j) in cells_in(bx1 - 0.35, by1 - 0.35, bx2 + 0.35, by2 + 0.35):
+                    keepout[j * NX + i] = 1
+                if not name:
+                    continue
+                cx, cy = (bx1 + bx2) / 2, (by1 + by2) / 2
+                try:
+                    shape = pad.GetShape(pcbnew.F_Cu)
+                except TypeError:
+                    shape = pad.GetShape()
+                k = 0.35 if shape in (pcbnew.PAD_SHAPE_CIRCLE, pcbnew.PAD_SHAPE_OVAL) else None
+                if k:
+                    hx, hy = (bx2 - bx1) * k, (by2 - by1) * k
+                else:
+                    hx, hy = max(0.0, (bx2 - bx1) / 2 - 0.12), max(0.0, (by2 - by1) / 2 - 0.12)
+                cs = cells_in(cx - hx, cy - hy, cx + hx, cy + hy)
+                stub = None
+                if not cs:
+                    i, j = int(round(gi(cx))), int(round(gj(cy)))
+                    cs = [(i, j)]
+                    stub = (cx, cy)
+                pads.setdefault(name, []).append(dict(cells={l: cs for l in layers}, c=(cx, cy), smd=not tht, ref=ref,
+                                                      num=pad.GetNumber(), stub=stub, box=(bx1, by1, bx2, by2)))
 
-    order = [n for n in ORDER_FIRST if n in pads]
-    rest = sorted((n for n in pads if n not in ORDER_FIRST and n not in ORDER_LAST and n != "GND"),
-                  key=lambda n: len(pads[n]))
-    for n in order:
-        route_net(n)
-    route_gnd()
-    for n in rest + [n for n in ORDER_LAST if n in pads]:
-        route_net(n)
+        # ------------------------------------------------ emit helpers
+        LAYER = (pcbnew.F_Cu, pcbnew.B_Cu)
+        stats = dict(tracks=0, vias=0)
+
+        def add_track(net, l, xa, ya, xb, yb, w):
+            t = pcbnew.PCB_TRACK(board)
+            t.SetStart(V(xa, ya)); t.SetEnd(V(xb, yb)); t.SetWidth(mm(w)); t.SetLayer(LAYER[l]); t.SetNet(nets[net])
+            board.Add(t)
+            stats["tracks"] += 1
+            mark(l, min(xa, xb) - w / 2, min(ya, yb) - w / 2, max(xa, xb) + w / 2, max(ya, yb) + w / 2, netid[net])
+
+        def add_via(net, x, y):
+            v = pcbnew.PCB_VIA(board)
+            v.SetPosition(V(x, y))
+            v.SetDrill(mm(VIA_DRILL))
+            try:
+                v.SetWidth(pcbnew.F_Cu, mm(VIA_D))
+            except TypeError:
+                v.SetWidth(mm(VIA_D))
+            v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            v.SetNet(nets[net])
+            board.Add(v)
+            stats["vias"] += 1
+            for l in (0, 1):
+                mark(l, x - VIA_D / 2, y - VIA_D / 2, x + VIA_D / 2, y + VIA_D / 2, netid[net])
+            for (i, j) in cells_in(x - 0.6, y - 0.6, x + 0.6, y + 0.6):
+                keepout[j * NX + i] = 1
+
+        def emit(net, path, w, end_via=False):
+            pt = lambda c: (GX0 + c[1] * G, GY0 + c[2] * G)
+            k = 0
+            while k < len(path) - 1:
+                a = path[k]
+                b = path[k + 1]
+                if a[0] != b[0]:
+                    add_via(net, *pt(a))
+                    k += 1
+                    continue
+                d = (b[1] - a[1], b[2] - a[2])
+                e = k + 1
+                while e + 1 < len(path) and path[e + 1][0] == a[0] and \
+                        (path[e + 1][1] - path[e][1], path[e + 1][2] - path[e][2]) == d:
+                    e += 1
+                add_track(net, a[0], *pt(a), *pt(path[e]), w)
+                k = e
+            if end_via:
+                add_via(net, *pt(path[-1]))
+
+        def stub(net, pad, cell, w):
+            if pad["stub"]:
+                x, y = GX0 + cell[1] * G, GY0 + cell[2] * G
+                if abs(x - pad["stub"][0]) + abs(y - pad["stub"][1]) > 1e-4:
+                    add_track(net, cell[0], pad["stub"][0], pad["stub"][1], x, y, min(w, 0.2))
+
+        failed = []
+
+        def route_net(net):
+            nid = netid[net]
+            pl = pads.get(net, [])
+            if len(pl) < 2:
+                return
+            m0 = 0 if net in NARROW else 1
+            done = [pl[0]]
+            todo = pl[1:]
+            tree = set((l, i, j) for l, cs in pl[0]["cells"].items() for (i, j) in cs)
+            while todo:
+                todo.sort(key=lambda p: min(abs(p["c"][0] - q["c"][0]) + abs(p["c"][1] - q["c"][1]) for q in done))
+                p = todo.pop(0)
+                src = [(l, i, j) for l, cs in p["cells"].items() for (i, j) in cs]
+                path, mused = None, m0
+                for m in ([1, 0] if m0 == 1 else [0]):
+                    path = astar(nid, src, tree, m)
+                    mused = m
+                    if path:
+                        break
+                if not path:
+                    failed.append("%s: %s.%s" % (net, p["ref"], p["num"]))
+                    continue
+                w = TW[mused]
+                emit(net, path, w)
+                stub(net, p, path[0], w)
+                for q in done:   # target pad stub if the path ended on a stub-type pad cell
+                    if q["stub"] and any(path[-1][1:] == c for cs in q["cells"].values() for c in cs):
+                        stub(net, q, path[-1], w)
+                for c in path:
+                    tree.add(c)
+                for k in range(len(path) - 1):
+                    if path[k][0] != path[k + 1][0]:
+                        tree.add((0,) + path[k][1:]); tree.add((1,) + path[k][1:])
+                tree.update(src)
+                done.append(p)
+
+        def route_gnd():
+            nid = netid["GND"]
+            for p in pads.get("GND", []):
+                if not p["smd"]:
+                    continue   # スルーホールは内層GNDプレーンに直接つながる
+                if p["ref"] == "U1":   # IC: 放熱パッドにビア2個、GNDピンは放熱パッドへ直結
+                    ep = [q for q in pads["GND"] if q["ref"] == "U1" and q["num"] == "13"][0]
+                    ex = round(ep["c"][0] / G) * G
+                    if p["num"] == "13":
+                        for dy in (-0.75, 0.75):
+                            add_via("GND", ex, round((ep["c"][1] + dy) / G) * G)
+                    else:
+                        add_track("GND", 0, p["c"][0], p["c"][1], ex, p["c"][1], 0.2)
+                    continue
+                src = [(0, i, j) for (i, j) in p["cells"][0]]
+                path = astar(nid, src, set(), 0, via_goal=True)
+                if not path:
+                    failed.append("GND via: %s.%s" % (p["ref"], p["num"]))
+                    continue
+                emit("GND", path, 0.3 if len(path) < 3 else 0.25, end_via=True)
+                stub("GND", p, path[0], 0.2)
+
+        order = [n for n in ORDER_FIRST if n in pads]
+        rest = sorted((n for n in pads if n not in ORDER_FIRST and n not in ORDER_LAST and n != "GND"),
+                      key=lambda n: len(pads[n]))
+        for n in order:
+            route_net(n)
+        route_gnd()
+        for n in rest + [n for n in ORDER_LAST if n in pads]:
+            route_net(n)
 
     # 基板上の文字 (シルク)
     def silk(txt, x, y, size=1.2, rot=0):
@@ -610,10 +622,55 @@ def main():
 
     board.SetFileName(OUT)
     pcbnew.SaveBoard(OUT, board)
-    print("saved", OUT, stats)
-    print("FAILED %d:" % len(failed))
-    for f in failed:
-        print("  ", f)
+    if ROUTER == "builtin":
+        print("saved", OUT, stats)
+        print("FAILED %d:" % len(failed))
+        for f in failed:
+            print("  ", f)
+    else:
+        route_with_kar()
+
+
+def route_with_kar():
+    """配置だけの基板 (OUT) を kar auto で配線し、OUT を配線済みに置き換える。
+    途中のファイルと品質レポートは kicad/.route/kar_out/ に残る (製作データの zip には入らない)。"""
+    import importlib.util, shutil, subprocess
+    if importlib.util.find_spec("kar") is None:
+        raise SystemExit("kar (kicad-audio-router) がこの Python に入っていない。\n"
+                         f"  入れる:   {sys.executable} -m pip install {KAR_URL}\n"
+                         "  入れずに簡易ルーターで配線する: ROUTER=builtin で gen_pcb.py を実行")
+    work = os.path.join(sch.OUT, ".route")
+    rep = os.path.join(work, "kar_out")
+    os.makedirs(rep, exist_ok=True)
+    routed = os.path.join(work, sch.PROJECT + ".kicad_pcb")
+    cmd = [sys.executable, "-m", "kar", "auto", OUT, "-o", routed, "--out", rep]
+    rules = os.path.join(sch.ROOT, "kar_rules.json")     # ネットの分類の上書き (任意)
+    if os.path.exists(rules):
+        cmd += ["--rules", rules]
+    print("routing with kar ... (大きな基板では数分かかる)")
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    i = r.stdout.rfind('{\n "saved"')
+    if i < 0:
+        print(r.stdout[-3000:], r.stderr[-3000:])
+        raise SystemExit("kar auto が失敗した (上の出力を見る)")
+    summ = json.loads(r.stdout[i:])
+    shutil.copyfile(routed, OUT)
+    subprocess.run([sys.executable, "-m", "kar", "plot", OUT, "-o", os.path.join(rep, "配線図.svg"),
+                    "--title", sch.PROJECT] + (["--rules", rules] if os.path.exists(rules) else []),
+                   capture_output=True)
+    drc = summ.get("drc") or {}
+    probs = drc.get("problems") or {}
+    # 配置で決まる指摘 (上の配置チェックで許したコートヤードの重なりなど) は配線の問題として数えない
+    placement = {"courtyards_overlap", "pth_inside_courtyard", "silk_overlap", "silk_over_copper",
+                 "silk_edge_clearance", "lib_footprint_mismatch", "lib_footprint_issues"}
+    routing = {k: v for k, v in probs.items() if k not in placement}
+    print("saved", OUT)
+    placed = {k: v for k, v in probs.items() if k in placement}
+    print(f"kar: score {summ['score']} / 100, unrouted {summ['unrouted']}, unconnected {drc.get('unconnected', '?')}, "
+          f"DRC (routing) {routing or 0}, DRC (placement) {placed or 0}, {summ['seconds']} s")
+    print("report:", os.path.join(rep, sch.PROJECT + "_quality.md"))
+    if summ["unrouted"] or drc.get("unconnected") or routing:
+        raise SystemExit("kar auto: 未配線か配線の DRC の問題が残っている。品質レポートと DRC (kicad/.route/kar_out/) を見る")
 
 
 if __name__ == "__main__":
